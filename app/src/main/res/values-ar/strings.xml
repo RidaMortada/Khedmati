@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">خدمتي</string>
+    <string name="toolbar_title">خدمتي</string>
+    <string name="welcome">مرحباً</string>
+    <string name="enter_name">أدخل اسمك</string>
+    <string name="show_greeting">إظهار الترحيب</string>
+    <string name="greeting">مرحباً، %1$s!</string>
+    <string name="settings">الإعدادات</string>
+    <string name="home">الرئيسية</string>
+    <string name="about">حول التطبيق</string>
+    <string name="drawer_open">فتح قائمة التنقل</string>
+    <string name="drawer_close">إغلاق قائمة التنقل</string>
+    <string name="home_selected">تم اختيار الرئيسية</string>
+    <string name="about_selected">تم اختيار حول التطبيق</string>
+    <string name="settings_selected">تم اختيار الإعدادات</string>
+</resources>

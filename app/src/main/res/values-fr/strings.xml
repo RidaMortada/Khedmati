@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">Khedmati</string>
+    <string name="toolbar_title">Khedmati</string>
+    <string name="welcome">Bienvenue</string>
+    <string name="enter_name">Entrez votre nom</string>
+    <string name="show_greeting">Afficher le message</string>
+    <string name="greeting">Bienvenue, %1$s !</string>
+    <string name="settings">Paramètres</string>
+    <string name="home">Accueil</string>
+    <string name="about">À propos</string>
+    <string name="drawer_open">Ouvrir le menu de navigation</string>
+    <string name="drawer_close">Fermer le menu de navigation</string>
+    <string name="home_selected">Accueil sélectionné</string>
+    <string name="about_selected">À propos sélectionné</string>
+    <string name="settings_selected">Paramètres sélectionnés</string>
+</resources>
