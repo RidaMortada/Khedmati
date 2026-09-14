@@ -3,6 +3,7 @@ package com.example.khedmati
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
@@ -10,6 +11,8 @@ import android.widget.Toast
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.navigation.NavigationView
@@ -23,11 +26,24 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         drawerLayout = findViewById(R.id.drawerLayout)
+        val mainContent: View = findViewById(R.id.mainContent)
         val toolbar: MaterialToolbar = findViewById(R.id.toolbar)
         val navigationView: NavigationView = findViewById(R.id.navigationView)
         val nameEditText: EditText = findViewById(R.id.nameEditText)
         val greetingTextView: TextView = findViewById(R.id.greetingTextView)
         val showButton: Button = findViewById(R.id.showButton)
+
+        ViewCompat.setOnApplyWindowInsetsListener(mainContent) { view, insets ->
+            val statusBarInsets = insets.getInsets(WindowInsetsCompat.Type.statusBars())
+            view.setPadding(
+                view.paddingLeft,
+                statusBarInsets.top,
+                view.paddingRight,
+                view.paddingBottom
+            )
+            insets
+        }
+        ViewCompat.requestApplyInsets(mainContent)
 
         setSupportActionBar(toolbar)
 
