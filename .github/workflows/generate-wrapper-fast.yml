@@ -1,0 +1,57 @@
+name: Generate Gradle Wrapper Fast
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/generate-wrapper-fast.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  wrapper:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Generate wrapper in minimal project
+        shell: bash
+        run: |
+          rm -rf /tmp/wrapper-project
+          mkdir -p /tmp/wrapper-project
+          printf 'rootProject.name = "wrapper-bootstrap"\n' > /tmp/wrapper-project/settings.gradle
+          printf '' > /tmp/wrapper-project/build.gradle
+          gradle -p /tmp/wrapper-project wrapper --gradle-version 8.9 --distribution-type bin
+          mkdir -p gradle/wrapper
+          cp /tmp/wrapper-project/gradle/wrapper/gradle-wrapper.jar gradle/wrapper/gradle-wrapper.jar
+          cp /tmp/wrapper-project/gradle/wrapper/gradle-wrapper.properties gradle/wrapper/gradle-wrapper.properties
+          cp /tmp/wrapper-project/gradlew gradlew
+          cp /tmp/wrapper-project/gradlew.bat gradlew.bat
+          chmod +x gradlew
+
+      - name: Verify wrapper version
+        run: ./gradlew --version
+
+      - name: Commit wrapper files
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add gradle/wrapper/gradle-wrapper.jar gradle/wrapper/gradle-wrapper.properties gradlew gradlew.bat
+          if ! git diff --cached --quiet; then
+            git commit -m "Add official Gradle 8.9 wrapper [skip ci]"
+            git push origin HEAD:main
+          fi
