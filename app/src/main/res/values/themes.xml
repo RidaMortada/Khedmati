@@ -1,9 +1,20 @@
 <resources>
-    <style name="Theme.Khedmati" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="colorPrimary">#175C4C</item>
+    <style name="Theme.Khedmati" parent="Theme.Material3.Light.NoActionBar">
+        <item name="colorPrimary">#6FAE9F</item>
         <item name="colorOnPrimary">#FFFFFF</item>
-        <item name="colorSecondary">#C8902F</item>
+        <item name="colorPrimaryContainer">#DDF4EC</item>
+        <item name="colorOnPrimaryContainer">#173F36</item>
+        <item name="colorSecondary">#E0B76A</item>
+        <item name="colorOnSecondary">#332A18</item>
+        <item name="colorSecondaryContainer">#FFF0CF</item>
+        <item name="colorOnSecondaryContainer">#4A3917</item>
+        <item name="colorSurface">#FFFDF9</item>
+        <item name="colorSurfaceVariant">#EEF6F2</item>
+        <item name="colorOnSurface">#26332F</item>
+        <item name="android:colorBackground">#FFFDF9</item>
+        <item name="android:navigationBarColor">#FFFDF9</item>
+        <item name="android:statusBarColor">#FFFDF9</item>
+        <item name="android:windowLightStatusBar">true</item>
         <item name="android:fontFamily">sans</item>
-        <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>
