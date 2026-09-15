@@ -1,6 +1,7 @@
 package com.example.khedmati
 
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.text.InputType
@@ -11,12 +12,14 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.RatingBar
 import android.widget.ScrollView
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
@@ -29,7 +32,6 @@ import com.example.khedmati.model.Post
 import com.example.khedmati.model.PriceMode
 import com.example.khedmati.model.Professional
 import com.example.khedmati.model.Service
-import com.example.khedmati.model.UserRole
 import com.example.khedmati.util.AppPreferences
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.bottomnavigation.BottomNavigationView
@@ -48,7 +50,22 @@ class MainActivity : AppCompatActivity() {
     private lateinit var preferences: AppPreferences
 
     private var activeTab = R.id.nav_home
-    private var attachedDummyImageUrl: String? = null
+    private var pendingPostImageUri: Uri? = null
+    private var pendingPostPreview: ImageView? = null
+
+    private val workImagePicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            runCatching {
+                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            pendingPostImageUri = uri
+            pendingPostPreview?.apply {
+                visibility = View.VISIBLE
+                setImageURI(uri)
+            }
+            Toast.makeText(this, R.string.work_image_selected, Toast.LENGTH_SHORT).show()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -83,9 +100,8 @@ class MainActivity : AppCompatActivity() {
     private fun restoreDummySession() {
         val name = preferences.sessionName()
         val email = preferences.sessionEmail()
-        val role = preferences.sessionRole()
-        if (name != null && email != null && role != null) {
-            DummyCloudRepository.restoreSession(name, email, role)
+        if (name != null && email != null) {
+            DummyCloudRepository.restoreSession(name, email)
         }
     }
 
@@ -124,7 +140,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun scrollColumn(): Pair<ScrollView, LinearLayout> {
-        val scroll = ScrollView(this).apply { isFillViewport = true }
+        val scroll = ScrollView(this).apply {
+            isFillViewport = true
+            setBackgroundColor(Color.parseColor("#FFFDF9"))
+        }
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(16), dp(16), dp(16), dp(28))
@@ -146,9 +165,7 @@ class MainActivity : AppCompatActivity() {
 
         column.addView(titleText(getString(R.string.discover_local_services)))
         column.addView(bodyText(getString(R.string.home_subtitle)))
-        column.addView(space(8))
-        column.addView(dummyStatusCard())
-        column.addView(space(18))
+        column.addView(space(12))
         column.addView(sectionText(getString(R.string.categories)))
 
         val horizontal = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false }
@@ -303,7 +320,7 @@ class MainActivity : AppCompatActivity() {
             column.addView(bodyText(getString(R.string.sign_in_to_save)))
             column.addView(Button(this).apply {
                 text = getString(R.string.sign_in)
-                setOnClickListener { showSignInDialog(UserRole.CLIENT) }
+                setOnClickListener { showSignInDialog() }
             })
         } else {
             val saved = DummyCloudRepository.savedProfessionals()
@@ -329,31 +346,26 @@ class MainActivity : AppCompatActivity() {
             column.addView(titleText(getString(R.string.account_guest_title)))
             column.addView(bodyText(getString(R.string.account_guest_body)))
             column.addView(Button(this).apply {
-                text = getString(R.string.sign_in_as_client)
-                setOnClickListener { showSignInDialog(UserRole.CLIENT) }
-            })
-            column.addView(Button(this).apply {
-                text = getString(R.string.sign_in_as_professional)
-                setOnClickListener { showSignInDialog(UserRole.PROFESSIONAL) }
+                text = getString(R.string.sign_in)
+                setOnClickListener { showSignInDialog() }
             })
         } else {
             column.addView(titleText(user.displayName))
-            column.addView(bodyText("${user.role.name} • ${user.email}"))
+            column.addView(bodyText(user.email))
+            column.addView(bodyText(getString(R.string.single_account_explanation)))
             column.addView(space(12))
+            column.addView(Button(this).apply {
+                text = getString(R.string.create_post)
+                setOnClickListener { renderCreatePost() }
+            })
+            column.addView(Button(this).apply {
+                text = getString(R.string.manage_professional_profile)
+                setOnClickListener { renderProfessionalManagement() }
+            })
             column.addView(Button(this).apply {
                 text = getString(R.string.notifications)
                 setOnClickListener { renderNotifications() }
             })
-            if (user.role == UserRole.PROFESSIONAL) {
-                column.addView(Button(this).apply {
-                    text = getString(R.string.manage_professional_profile)
-                    setOnClickListener { renderProfessionalManagement() }
-                })
-                column.addView(Button(this).apply {
-                    text = getString(R.string.create_post)
-                    setOnClickListener { renderCreatePost() }
-                })
-            }
             column.addView(Button(this).apply {
                 text = getString(R.string.sign_out)
                 setOnClickListener {
@@ -421,24 +433,28 @@ class MainActivity : AppCompatActivity() {
 
         column.addView(space(18))
         column.addView(sectionText(getString(R.string.services)))
-        professional.services.forEach { service ->
-            column.addView(serviceCard(service))
-            column.addView(space(10))
+        if (professional.services.isEmpty()) {
+            column.addView(bodyText(getString(R.string.no_services_yet)))
+        } else {
+            professional.services.forEach { service ->
+                column.addView(serviceCard(service))
+                column.addView(space(10))
+            }
         }
 
         column.addView(space(10))
         column.addView(sectionText(getString(R.string.reviews)))
         column.addView(bodyText(getString(R.string.unverified_review_notice)))
-        when (DummyCloudRepository.currentUser?.role) {
-            UserRole.CLIENT -> column.addView(Button(this).apply {
+        if (DummyCloudRepository.currentUser != null) {
+            column.addView(Button(this).apply {
                 text = getString(R.string.write_review)
                 setOnClickListener { showReviewDialog(professional) }
             })
-            null -> column.addView(Button(this).apply {
+        } else {
+            column.addView(Button(this).apply {
                 text = getString(R.string.sign_in_to_review)
-                setOnClickListener { showSignInDialog(UserRole.CLIENT) }
+                setOnClickListener { showSignInDialog() }
             })
-            else -> Unit
         }
 
         val reviews = DummyCloudRepository.reviewsForProfessional(professional.id)
@@ -453,9 +469,14 @@ class MainActivity : AppCompatActivity() {
 
         column.addView(space(16))
         column.addView(sectionText(getString(R.string.posts)))
-        DummyCloudRepository.postsForProfessional(professional.id).forEach { post ->
-            column.addView(postCard(post))
-            column.addView(space(10))
+        val professionalPosts = DummyCloudRepository.postsForProfessional(professional.id)
+        if (professionalPosts.isEmpty()) {
+            column.addView(bodyText(getString(R.string.no_posts_yet)))
+        } else {
+            professionalPosts.forEach { post ->
+                column.addView(postCard(post))
+                column.addView(space(10))
+            }
         }
         replaceContent(scroll)
     }
@@ -463,7 +484,7 @@ class MainActivity : AppCompatActivity() {
     private fun renderProfessionalManagement() {
         val user = DummyCloudRepository.currentUser
         val professional = user?.professionalId?.let { DummyCloudRepository.professionalById(it) }
-        if (user?.role != UserRole.PROFESSIONAL || professional == null) {
+        if (user == null || professional == null) {
             renderAccount()
             return
         }
@@ -553,7 +574,10 @@ class MainActivity : AppCompatActivity() {
 
         column.addView(space(20))
         column.addView(sectionText(getString(R.string.manage_services)))
-        professional.services.forEach { column.addView(serviceCard(it)) }
+        professional.services.forEach {
+            column.addView(serviceCard(it))
+            column.addView(space(8))
+        }
         column.addView(Button(this).apply {
             text = getString(R.string.add_service)
             setOnClickListener { showAddServiceDialog(professional) }
@@ -563,9 +587,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun renderCreatePost() {
         val user = DummyCloudRepository.currentUser
-        val professionalId = user?.professionalId
-        if (user?.role != UserRole.PROFESSIONAL || professionalId == null) {
-            renderAccount()
+        if (user == null) {
+            showSignInDialog()
             return
         }
 
@@ -576,21 +599,28 @@ class MainActivity : AppCompatActivity() {
 
         val textInput = EditText(this).apply {
             hint = getString(R.string.post_text_hint)
-            minLines = 5
+            minLines = 4
             gravity = Gravity.TOP
         }
-        val imageStatus = bodyText(getString(R.string.no_dummy_image_attached))
-        attachedDummyImageUrl = null
         column.addView(textInput, matchWrap())
+        column.addView(space(8))
+
+        pendingPostImageUri = null
+        val preview = ImageView(this).apply {
+            visibility = View.GONE
+            adjustViewBounds = true
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            setBackgroundColor(Color.parseColor("#EEF8F4"))
+            contentDescription = getString(R.string.work_photo)
+        }
+        pendingPostPreview = preview
+        column.addView(preview, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(230)))
         column.addView(Button(this).apply {
             text = getString(R.string.attach_image_dummy)
-            setOnClickListener {
-                attachedDummyImageUrl = DummyStorageService.uploadImage("post")
-                imageStatus.text = attachedDummyImageUrl
-                Toast.makeText(this@MainActivity, R.string.dummy_upload_complete, Toast.LENGTH_SHORT).show()
-            }
+            setOnClickListener { workImagePicker.launch(arrayOf("image/*")) }
         })
-        column.addView(imageStatus)
+        column.addView(bodyText(getString(R.string.local_image_notice)))
+
         column.addView(Button(this).apply {
             text = getString(R.string.publish)
             setOnClickListener {
@@ -598,7 +628,8 @@ class MainActivity : AppCompatActivity() {
                 if (text.isBlank()) {
                     textInput.error = getString(R.string.required_field)
                 } else {
-                    DummyCloudRepository.createPost(professionalId, text, attachedDummyImageUrl)
+                    DummyCloudRepository.createPost(user.professionalId, text, pendingPostImageUri?.toString())
+                    pendingPostPreview = null
                     Toast.makeText(this@MainActivity, R.string.post_published_dummy, Toast.LENGTH_SHORT).show()
                     activeTab = R.id.nav_home
                     bottomNavigation.selectedItemId = R.id.nav_home
@@ -645,8 +676,6 @@ class MainActivity : AppCompatActivity() {
         box.addView(ratingSummary(professional))
         box.addView(bodyText("📍 ${professional.locationLabel.resolve(currentLanguage())}"))
         box.addView(bodyText(professional.description.resolve(currentLanguage())))
-        val savedLabel = if (DummyCloudRepository.isSaved(professional.id)) getString(R.string.saved) else getString(R.string.save)
-        box.addView(bodyText("☆ $savedLabel"))
         card.addView(box)
         return card
     }
@@ -661,13 +690,15 @@ class MainActivity : AppCompatActivity() {
         box.addView(TextView(this).apply {
             text = professional?.publicName?.resolve(currentLanguage()) ?: getString(R.string.professional)
             textSize = 16f
+            setTextColor(Color.parseColor("#23453D"))
             setTypeface(typeface, android.graphics.Typeface.BOLD)
             setOnClickListener { professional?.let { renderProfessionalProfile(it) } }
         })
         box.addView(bodyText(post.publishedLabel.resolve(currentLanguage())))
-        box.addView(space(6))
+        box.addView(space(8))
+        box.addView(postImageView(post, professional))
+        box.addView(space(10))
         box.addView(bodyText(post.text.resolve(currentLanguage())))
-        post.imageUrl?.let { box.addView(bodyText(getString(R.string.dummy_image_reference, it))) }
 
         val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         val likeButton = Button(this).apply {
@@ -695,6 +726,32 @@ class MainActivity : AppCompatActivity() {
         return card
     }
 
+    private fun postImageView(post: Post, professional: Professional?): View {
+        val imageUrl = post.imageUrl
+        if (!imageUrl.isNullOrBlank() && (imageUrl.startsWith("content://") || imageUrl.startsWith("file://") || imageUrl.startsWith("android.resource://"))) {
+            return ImageView(this).apply {
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(220))
+                scaleType = ImageView.ScaleType.CENTER_CROP
+                adjustViewBounds = true
+                setBackgroundColor(Color.parseColor("#EEF8F4"))
+                contentDescription = getString(R.string.work_photo)
+                runCatching { setImageURI(Uri.parse(imageUrl)) }
+                    .onFailure { setImageResource(android.R.drawable.ic_menu_gallery) }
+            }
+        }
+
+        val category = professional?.let { DummyCloudRepository.categoryName(it.primaryCategoryId, currentLanguage()) }.orEmpty()
+        val icon = DummyCloudRepository.categories.firstOrNull { it.id == professional?.primaryCategoryId }?.icon ?: "📷"
+        return TextView(this).apply {
+            text = "$icon\n${getString(R.string.work_photo)}\n$category"
+            gravity = Gravity.CENTER
+            textSize = 18f
+            setTextColor(Color.parseColor("#315E53"))
+            setBackgroundColor(Color.parseColor("#EAF7F2"))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(190))
+        }
+    }
+
     private fun serviceCard(service: Service): View {
         val card = basicCard()
         val box = LinearLayout(this).apply {
@@ -710,11 +767,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun ratingSummary(professional: Professional): TextView =
-        if (professional.reviewCount == 0) {
-            bodyText(getString(R.string.no_reviews_yet))
-        } else {
-            bodyText(getString(R.string.rating_summary, professional.rating, professional.reviewCount))
-        }
+        if (professional.reviewCount == 0) bodyText(getString(R.string.no_reviews_yet))
+        else bodyText(getString(R.string.rating_summary, professional.rating, professional.reviewCount))
 
     private fun priceText(service: Service): String {
         val amount = service.minAmount?.let { formatAmount(it, service.currency) }
@@ -733,7 +787,7 @@ class MainActivity : AppCompatActivity() {
         return if (currency.isNullOrBlank()) formatted else "$formatted $currency"
     }
 
-    private fun showSignInDialog(role: UserRole) {
+    private fun showSignInDialog() {
         val form = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), 0, dp(20), 0)
@@ -752,15 +806,15 @@ class MainActivity : AppCompatActivity() {
         form.addView(password)
 
         MaterialAlertDialogBuilder(this)
-            .setTitle(if (role == UserRole.CLIENT) R.string.sign_in_as_client else R.string.sign_in_as_professional)
+            .setTitle(R.string.sign_in)
             .setMessage(R.string.dummy_auth_notice)
             .setView(form)
             .setNegativeButton(android.R.string.cancel, null)
             .setPositiveButton(R.string.continue_label) { _, _ ->
                 val displayName = name.text.toString().trim().ifBlank { getString(R.string.demo_user) }
                 val address = email.text.toString().trim().ifBlank { "demo@khedmati.local" }
-                val user = DummyCloudRepository.signIn(displayName, address, role)
-                preferences.saveSession(user.displayName, user.email, user.role)
+                val user = DummyCloudRepository.signIn(displayName, address)
+                preferences.saveSession(user.displayName, user.email)
                 Toast.makeText(this, R.string.signed_in_dummy, Toast.LENGTH_SHORT).show()
                 renderAccount()
             }
@@ -774,7 +828,7 @@ class MainActivity : AppCompatActivity() {
                 .setTitle(R.string.sign_in_required)
                 .setMessage(R.string.sign_in_required_message)
                 .setNegativeButton(android.R.string.cancel, null)
-                .setPositiveButton(R.string.sign_in) { _, _ -> showSignInDialog(UserRole.CLIENT) }
+                .setPositiveButton(R.string.sign_in) { _, _ -> showSignInDialog() }
                 .show()
         }
         return false
@@ -867,6 +921,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun confirmPhoneCall(phone: String) {
+        if (phone.isBlank()) {
+            Toast.makeText(this, R.string.phone_not_set, Toast.LENGTH_SHORT).show()
+            return
+        }
         MaterialAlertDialogBuilder(this)
             .setTitle(R.string.confirm_call)
             .setMessage(getString(R.string.confirm_call_message, phone))
@@ -944,15 +1002,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun basicCard(): MaterialCardView = MaterialCardView(this).apply {
-        radius = dp(14).toFloat()
-        cardElevation = dp(1).toFloat()
+        radius = dp(18).toFloat()
+        cardElevation = 0f
         strokeWidth = dp(1)
+        strokeColor = Color.parseColor("#DCEBE5")
+        setCardBackgroundColor(Color.WHITE)
         setContentPadding(0, 0, 0, 0)
     }
 
     private fun titleText(value: String): TextView = TextView(this).apply {
         text = value
         textSize = 26f
+        setTextColor(Color.parseColor("#24483F"))
         setTypeface(typeface, android.graphics.Typeface.BOLD)
         setPadding(0, 0, 0, dp(6))
     }
@@ -960,6 +1021,7 @@ class MainActivity : AppCompatActivity() {
     private fun sectionText(value: String): TextView = TextView(this).apply {
         text = value
         textSize = 18f
+        setTextColor(Color.parseColor("#315E53"))
         setTypeface(typeface, android.graphics.Typeface.BOLD)
         setPadding(0, dp(4), 0, dp(6))
     }
@@ -967,6 +1029,7 @@ class MainActivity : AppCompatActivity() {
     private fun labelText(value: String): TextView = TextView(this).apply {
         text = value
         textSize = 14f
+        setTextColor(Color.parseColor("#456E64"))
         setTypeface(typeface, android.graphics.Typeface.BOLD)
         setPadding(0, dp(10), 0, 0)
     }
@@ -974,6 +1037,7 @@ class MainActivity : AppCompatActivity() {
     private fun bodyText(value: String): TextView = TextView(this).apply {
         text = value
         textSize = 15f
+        setTextColor(Color.parseColor("#46544F"))
         setLineSpacing(0f, 1.08f)
         setPadding(0, dp(3), 0, dp(3))
     }
