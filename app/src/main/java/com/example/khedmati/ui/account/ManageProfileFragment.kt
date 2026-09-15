@@ -96,11 +96,13 @@ class ManageProfileFragment : Fragment() {
             .setPositiveButton(R.string.add) { _, _ ->
                 val title = dialogBinding.serviceTitleInput.text?.toString()?.trim().orEmpty()
                 if (title.isNotBlank()) {
+                    val currency = dialogBinding.serviceCurrencyInput.text?.toString()?.trim().orEmpty()
+                        .takeIf { it.isNotBlank() }
                     DummyCloudRepository.addService(
                         professional.id,
                         title,
                         dialogBinding.servicePriceInput.text?.toString()?.toDoubleOrNull(),
-                        dialogBinding.serviceCurrencyInput.text?.toString()?.trim()?.ifBlank { null }
+                        currency
                     )
                     serviceAdapter.submitList(professional.services)
                 }
