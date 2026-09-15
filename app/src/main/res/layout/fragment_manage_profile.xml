@@ -93,11 +93,27 @@
             android:layout_width="match_parent"
             android:layout_height="52dp" />
 
+        <TextView
+            android:id="@+id/profileImageStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:textColor="@color/khedmati_text_secondary"
+            android:textSize="13sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/profileImageButton"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginTop="6dp"
+            android:text="@string/upload_profile_image_dummy" />
+
         <com.google.android.material.button.MaterialButton
             android:id="@+id/saveProfileButton"
             android:layout_width="match_parent"
             android:layout_height="54dp"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="12dp"
             android:text="@string/save_to_dummy_cloud" />
 
         <TextView
