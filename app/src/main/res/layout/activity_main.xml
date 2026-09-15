@@ -9,34 +9,24 @@
     android:layoutDirection="locale"
     android:textDirection="locale">
 
-    <com.google.android.material.appbar.AppBarLayout
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="68dp"
         android:background="@color/khedmati_background"
-        app:elevation="0dp"
-        app:liftOnScroll="false">
+        android:paddingStart="10dp"
+        android:paddingEnd="10dp"
+        app:navigationIconTint="@color/khedmati_text_primary"
+        app:title="@string/app_name"
+        app:titleTextAppearance="@style/TextAppearance.Khedmati.Toolbar"
+        app:titleTextColor="@color/khedmati_text_primary" />
 
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/toolbar"
-            android:layout_width="match_parent"
-            android:layout_height="68dp"
-            android:background="@color/khedmati_background"
-            android:paddingStart="10dp"
-            android:paddingEnd="10dp"
-            app:navigationIconTint="@color/khedmati_text_primary"
-            app:title="@string/app_name"
-            app:titleTextAppearance="@style/TextAppearance.Khedmati.Toolbar"
-            app:titleTextColor="@color/khedmati_text_primary" />
-
-    </com.google.android.material.appbar.AppBarLayout>
-
-    <FrameLayout
-        android:id="@+id/contentContainer"
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/fragmentContainer"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:background="@color/khedmati_background"
-        android:clipToPadding="false" />
+        android:background="@color/khedmati_background" />
 
     <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
@@ -47,7 +37,7 @@
         android:layout_marginBottom="10dp"
         app:cardBackgroundColor="@color/khedmati_surface"
         app:cardCornerRadius="24dp"
-        app:cardElevation="10dp"
+        app:cardElevation="8dp"
         app:strokeColor="@color/khedmati_outline"
         app:strokeWidth="1dp">
 
