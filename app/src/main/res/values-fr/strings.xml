@@ -19,9 +19,9 @@
     <string name="near_me_dummy">Près de moi (fictif)</string>
     <string name="map_dummy">Choisir sur la carte (fictif)</string>
     <string name="current_location_dummy_title">Position actuelle fictive</string>
-    <string name="current_location_dummy_message">Aucune demande GPS n'est effectuée. Beyrouth est sélectionnée uniquement pour démontrer le filtre de localisation.</string>
+    <string name="current_location_dummy_message">Aucune demande GPS n’est effectuée. Beyrouth est sélectionnée uniquement pour démontrer le filtre de localisation.</string>
     <string name="map_dummy_title">Sélecteur de carte fictif</string>
-    <string name="map_dummy_message">Aucun fournisseur de cartes réel n'est connecté. Ce composant pourra être remplacé ultérieurement.</string>
+    <string name="map_dummy_message">Aucun fournisseur de cartes réel n’est connecté. Ce composant pourra être remplacé ultérieurement.</string>
     <string name="results">Résultats</string>
     <string name="no_results">Aucun professionnel correspondant. Essayez des filtres plus larges.</string>
     <string name="saved_professionals">Professionnels enregistrés</string>
@@ -48,7 +48,7 @@
     <string name="open_social_link">Ouvrir le lien social</string>
     <string name="services">Services</string>
     <string name="reviews">Avis</string>
-    <string name="unverified_review_notice">Les avis de la version 1 ne prouvent pas qu'une transaction de service a été réalisée.</string>
+    <string name="unverified_review_notice">Les avis de la version 1 ne prouvent pas qu’une transaction de service a été réalisée.</string>
     <string name="write_review">Écrire / modifier un avis</string>
     <string name="sign_in_to_review">Connectez-vous comme client pour donner un avis</string>
     <string name="no_reviews_yet">Nouveau • Aucun avis</string>
@@ -69,16 +69,16 @@
     <string name="saved_in_dummy_repository">Enregistré dans le dépôt fictif.</string>
     <string name="manage_services">Gérer les services et les prix</string>
     <string name="add_service">Ajouter un service</string>
-    <string name="post_dummy_notice">La publication est simulée localement. Aucun serveur ni service push n'est contacté.</string>
+    <string name="post_dummy_notice">La publication est simulée localement. Aucun serveur ni service push n’est contacté.</string>
     <string name="post_text_hint">Que souhaitez-vous partager ?</string>
     <string name="attach_image_dummy">Joindre une image (stockage fictif)</string>
     <string name="publish">Publier</string>
     <string name="required_field">Ce champ est obligatoire.</string>
     <string name="post_published_dummy">Publication ajoutée au fil fictif.</string>
-    <string name="notifications_dummy_notice">Ces notifications sont générées localement. Aucun fournisseur push n'est connecté.</string>
+    <string name="notifications_dummy_notice">Ces notifications sont générées localement. Aucun fournisseur push n’est connecté.</string>
     <string name="professional">Professionnel</string>
     <string name="dummy_image_reference">Image fictive : %1$s</string>
-    <string name="like_with_count">J'aime (%1$d)</string>
+    <string name="like_with_count">J’aime (%1$d)</string>
     <string name="comment_with_count">Commenter (%1$d)</string>
     <string name="share">Partager</string>
     <string name="rating_summary">%1$.1f ★ • %2$d avis</string>
@@ -90,10 +90,10 @@
     <string name="display_name">Nom affiché</string>
     <string name="email">E-mail</string>
     <string name="password">Mot de passe</string>
-    <string name="dummy_auth_notice">L'authentification est simulée localement. Le mot de passe est ignoré, non transmis et non stocké.</string>
+    <string name="dummy_auth_notice">L’authentification est simulée localement. Le mot de passe est ignoré, non transmis et non stocké.</string>
     <string name="continue_label">Continuer</string>
     <string name="demo_user">Utilisateur démo</string>
-    <string name="signed_in_dummy">Connexion effectuée avec l'authentification fictive.</string>
+    <string name="signed_in_dummy">Connexion effectuée avec l’authentification fictive.</string>
     <string name="sign_in_required">Connexion requise</string>
     <string name="sign_in_required_message">Cette action nécessite un compte connecté. La navigation publique reste disponible.</string>
     <string name="comment_hint">Écrire un commentaire</string>
@@ -102,10 +102,10 @@
     <string name="review_hint">Décrivez votre expérience</string>
     <string name="service_title">Titre du service</string>
     <string name="optional_price">Prix fixe facultatif</string>
-    <string name="confirm_call">Confirmer l'appel</string>
+    <string name="confirm_call">Confirmer l’appel</string>
     <string name="confirm_call_message">Ouvrir le composeur pour %1$s ?</string>
     <string name="cannot_open_link">Aucune application ne peut ouvrir ce lien.</string>
     <string name="share_fallback_note">Partagé depuis le prototype local Khedmati.</string>
     <string name="dummy_backend_title">Les connexions cloud sont volontairement simulées</string>
-    <string name="dummy_backend_body">Base de données, stockage, authentification et notifications sont simulés pour tester l'interface sans identifiants ni facturation.</string>
+    <string name="dummy_backend_body">Base de données, stockage, authentification et notifications sont simulés pour tester l’interface sans identifiants ni facturation.</string>
 </resources>
