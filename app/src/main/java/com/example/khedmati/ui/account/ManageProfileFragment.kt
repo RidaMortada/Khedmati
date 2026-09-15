@@ -11,6 +11,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.khedmati.MainActivity
 import com.example.khedmati.R
 import com.example.khedmati.data.DummyCloudRepository
+import com.example.khedmati.data.DummyStorageService
 import com.example.khedmati.databinding.DialogAddServiceBinding
 import com.example.khedmati.databinding.FragmentManageProfileBinding
 import com.example.khedmati.model.LocationMode
@@ -25,6 +26,7 @@ class ManageProfileFragment : Fragment() {
     private val host get() = requireActivity() as MainActivity
     private lateinit var professional: Professional
     private lateinit var serviceAdapter: ServiceAdapter
+    private var profileImageUrl: String? = null
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentManageProfileBinding.inflate(inflater, container, false)
@@ -40,6 +42,11 @@ class ManageProfileFragment : Fragment() {
         professional = DummyCloudRepository.professionalById(user.professionalId) ?: return
         setupForm()
         setupServices()
+        binding.profileImageButton.setOnClickListener {
+            profileImageUrl = DummyStorageService.uploadImage("profile")
+            binding.profileImageStatus.text = profileImageUrl
+            Toast.makeText(requireContext(), R.string.dummy_upload_complete, Toast.LENGTH_SHORT).show()
+        }
         binding.saveProfileButton.setOnClickListener { saveProfile() }
         binding.addServiceButton.setOnClickListener { showAddServiceDialog() }
     }
@@ -49,6 +56,8 @@ class ManageProfileFragment : Fragment() {
         binding.descriptionInput.setText(professional.description.resolve(host.language()))
         binding.phoneInput.setText(professional.phone)
         binding.radiusInput.setText(professional.serviceRadiusKm.toString())
+        profileImageUrl = professional.profileImageUrl
+        binding.profileImageStatus.text = profileImageUrl ?: getString(R.string.no_dummy_image_attached)
         binding.privacySpinner.adapter = ArrayAdapter(
             requireContext(), android.R.layout.simple_spinner_dropdown_item,
             listOf(getString(R.string.location_exact), getString(R.string.location_approximate), getString(R.string.location_city_only))
@@ -82,7 +91,7 @@ class ManageProfileFragment : Fragment() {
             phone = binding.phoneInput.text?.toString()?.trim().orEmpty(),
             radiusKm = binding.radiusInput.text?.toString()?.toIntOrNull()?.coerceIn(1, 200) ?: professional.serviceRadiusKm,
             locationMode = mode,
-            profileImageUrl = null
+            profileImageUrl = profileImageUrl
         )
         Toast.makeText(requireContext(), R.string.saved_in_dummy_repository, Toast.LENGTH_SHORT).show()
     }
