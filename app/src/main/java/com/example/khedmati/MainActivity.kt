@@ -1,93 +1,1001 @@
 package com.example.khedmati
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
-import android.view.Menu
-import android.view.MenuItem
+import android.text.InputType
+import android.view.Gravity
 import android.view.View
+import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
+import android.widget.FrameLayout
+import android.widget.HorizontalScrollView
+import android.widget.LinearLayout
+import android.widget.RatingBar
+import android.widget.ScrollView
+import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.GravityCompat
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.LocaleListCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.drawerlayout.widget.DrawerLayout
+import com.example.khedmati.data.DummyCloudRepository
+import com.example.khedmati.data.DummyStorageService
+import com.example.khedmati.model.LocationMode
+import com.example.khedmati.model.Post
+import com.example.khedmati.model.PriceMode
+import com.example.khedmati.model.Professional
+import com.example.khedmati.model.Service
+import com.example.khedmati.model.UserRole
+import com.example.khedmati.util.AppPreferences
 import com.google.android.material.appbar.MaterialToolbar
-import com.google.android.material.navigation.NavigationView
+import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.android.material.card.MaterialCardView
+import com.google.android.material.chip.Chip
+import com.google.android.material.chip.ChipGroup
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import java.text.NumberFormat
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var drawerLayout: DrawerLayout
+    private lateinit var toolbar: MaterialToolbar
+    private lateinit var contentContainer: FrameLayout
+    private lateinit var bottomNavigation: BottomNavigationView
+    private lateinit var preferences: AppPreferences
+
+    private var activeTab = R.id.nav_home
+    private var attachedDummyImageUrl: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        preferences = AppPreferences(this)
+        restoreDummySession()
         setContentView(R.layout.activity_main)
 
-        drawerLayout = findViewById(R.id.drawerLayout)
-        val mainContent: View = findViewById(R.id.mainContent)
-        val toolbar: MaterialToolbar = findViewById(R.id.toolbar)
-        val navigationView: NavigationView = findViewById(R.id.navigationView)
-        val nameEditText: EditText = findViewById(R.id.nameEditText)
-        val greetingTextView: TextView = findViewById(R.id.greetingTextView)
-        val showButton: Button = findViewById(R.id.showButton)
+        toolbar = findViewById(R.id.toolbar)
+        contentContainer = findViewById(R.id.contentContainer)
+        bottomNavigation = findViewById(R.id.bottomNavigation)
 
-        ViewCompat.setOnApplyWindowInsetsListener(mainContent) { view, insets ->
-            val statusBarInsets = insets.getInsets(WindowInsetsCompat.Type.statusBars())
-            view.setPadding(
-                view.paddingLeft,
-                statusBarInsets.top,
-                view.paddingRight,
-                view.paddingBottom
-            )
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.appRoot)) { view, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             insets
         }
-        ViewCompat.requestApplyInsets(mainContent)
 
-        setSupportActionBar(toolbar)
-
-        val drawerToggle = ActionBarDrawerToggle(
-            this,
-            drawerLayout,
-            toolbar,
-            R.string.drawer_open,
-            R.string.drawer_close
-        )
-        drawerLayout.addDrawerListener(drawerToggle)
-        drawerToggle.syncState()
-
-        navigationView.setNavigationItemSelectedListener { item ->
-            when (item.itemId) {
-                R.id.nav_home -> Toast.makeText(this, R.string.home_selected, Toast.LENGTH_SHORT).show()
-                R.id.nav_about -> Toast.makeText(this, R.string.about_selected, Toast.LENGTH_SHORT).show()
-            }
-            drawerLayout.closeDrawer(GravityCompat.START)
+        bottomNavigation.setOnItemSelectedListener { item ->
+            activeTab = item.itemId
+            renderActiveTab()
             true
         }
 
-        showButton.setOnClickListener {
-            val name = nameEditText.text.toString().trim()
-            if (name.isEmpty()) {
-                greetingTextView.setText(R.string.welcome)
+        bottomNavigation.selectedItemId = R.id.nav_home
+
+        if (!preferences.languageChosen) {
+            showLanguageDialog(firstLaunch = true)
+        } else {
+            renderHome()
+        }
+    }
+
+    private fun restoreDummySession() {
+        val name = preferences.sessionName()
+        val email = preferences.sessionEmail()
+        val role = preferences.sessionRole()
+        if (name != null && email != null && role != null) {
+            DummyCloudRepository.restoreSession(name, email, role)
+        }
+    }
+
+    private fun currentLanguage(): String = preferences.language
+
+    private fun renderActiveTab() {
+        clearBackNavigation()
+        when (activeTab) {
+            R.id.nav_search -> renderSearch()
+            R.id.nav_saved -> renderSaved()
+            R.id.nav_account -> renderAccount()
+            else -> renderHome()
+        }
+    }
+
+    private fun clearBackNavigation() {
+        toolbar.navigationIcon = null
+        toolbar.setNavigationOnClickListener(null)
+    }
+
+    private fun showDetailBack(title: String, backAction: () -> Unit) {
+        toolbar.title = title
+        toolbar.setNavigationIcon(android.R.drawable.ic_media_previous)
+        toolbar.setNavigationOnClickListener { backAction() }
+    }
+
+    private fun replaceContent(view: View) {
+        contentContainer.removeAllViews()
+        contentContainer.addView(
+            view,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+        )
+    }
+
+    private fun scrollColumn(): Pair<ScrollView, LinearLayout> {
+        val scroll = ScrollView(this).apply {
+            isFillViewport = true
+        }
+        val column = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(16), dp(16), dp(28))
+        }
+        scroll.addView(
+            column,
+            ScrollView.LayoutParams(
+                ScrollView.LayoutParams.MATCH_PARENT,
+                ScrollView.LayoutParams.WRAP_CONTENT
+            )
+        )
+        return scroll to column
+    }
+
+    private fun renderHome() {
+        clearBackNavigation()
+        toolbar.title = getString(R.string.home)
+        val (scroll, column) = scrollColumn()
+
+        column.addView(titleText(getString(R.string.discover_local_services)))
+        column.addView(bodyText(getString(R.string.home_subtitle)))
+        column.addView(space(8))
+        column.addView(dummyStatusCard())
+        column.addView(space(18))
+        column.addView(sectionText(getString(R.string.categories)))
+
+        val horizontal = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false }
+        val chips = ChipGroup(this).apply {
+            isSingleLine = true
+            isSingleSelection = false
+        }
+        DummyCloudRepository.categories.forEach { category ->
+            chips.addView(Chip(this).apply {
+                text = "${category.icon} ${category.name.resolve(currentLanguage())}"
+                isCheckable = false
+                setOnClickListener {
+                    activeTab = R.id.nav_search
+                    bottomNavigation.selectedItemId = R.id.nav_search
+                    renderSearch(category.id)
+                }
+            })
+        }
+        horizontal.addView(chips)
+        column.addView(horizontal)
+        column.addView(space(22))
+        column.addView(sectionText(getString(R.string.recent_posts)))
+
+        DummyCloudRepository.posts.filter { it.isActive }.forEach { post ->
+            column.addView(postCard(post))
+            column.addView(space(12))
+        }
+
+        replaceContent(scroll)
+    }
+
+    private fun renderSearch(preselectedCategoryId: String? = null) {
+        clearBackNavigation()
+        toolbar.title = getString(R.string.search)
+        val (scroll, column) = scrollColumn()
+
+        column.addView(titleText(getString(R.string.find_professional)))
+        val queryInput = EditText(this).apply {
+            hint = getString(R.string.search_hint)
+            inputType = InputType.TYPE_CLASS_TEXT
+            contentDescription = getString(R.string.search_hint)
+        }
+        column.addView(queryInput, matchWrap())
+
+        val categorySpinner = Spinner(this)
+        val categoryLabels = mutableListOf(getString(R.string.all_categories))
+        categoryLabels.addAll(DummyCloudRepository.categories.map { it.name.resolve(currentLanguage()) })
+        categorySpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, categoryLabels)
+        val requestedCategoryIndex = DummyCloudRepository.categories.indexOfFirst { it.id == preselectedCategoryId }
+        if (requestedCategoryIndex >= 0) categorySpinner.setSelection(requestedCategoryIndex + 1)
+        column.addView(labelText(getString(R.string.category)))
+        column.addView(categorySpinner, matchWrap())
+
+        val locations = listOf(
+            getString(R.string.all_locations),
+            "Beirut",
+            "Bekaa",
+            "Keserwan-Jbeil",
+            "North"
+        )
+        val locationSpinner = Spinner(this).apply {
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, locations)
+        }
+        column.addView(labelText(getString(R.string.location)))
+        column.addView(locationSpinner, matchWrap())
+
+        val ratingSpinner = Spinner(this).apply {
+            adapter = ArrayAdapter(
+                this@MainActivity,
+                android.R.layout.simple_spinner_dropdown_item,
+                listOf(getString(R.string.any_rating), "3+", "4+", "4.5+")
+            )
+        }
+        column.addView(labelText(getString(R.string.minimum_rating)))
+        column.addView(ratingSpinner, matchWrap())
+
+        val locationActions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        val nearMe = Button(this).apply {
+            text = getString(R.string.near_me_dummy)
+            setOnClickListener {
+                MaterialAlertDialogBuilder(this@MainActivity)
+                    .setTitle(R.string.current_location_dummy_title)
+                    .setMessage(R.string.current_location_dummy_message)
+                    .setPositiveButton(android.R.string.ok) { _, _ -> locationSpinner.setSelection(1) }
+                    .show()
+            }
+        }
+        val map = Button(this).apply {
+            text = getString(R.string.map_dummy)
+            setOnClickListener {
+                MaterialAlertDialogBuilder(this@MainActivity)
+                    .setTitle(R.string.map_dummy_title)
+                    .setMessage(R.string.map_dummy_message)
+                    .setPositiveButton(android.R.string.ok, null)
+                    .show()
+            }
+        }
+        locationActions.addView(nearMe, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        locationActions.addView(map, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        column.addView(locationActions)
+
+        val resultsContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val searchButton = Button(this).apply {
+            text = getString(R.string.search)
+            setOnClickListener {
+                val categoryId = if (categorySpinner.selectedItemPosition == 0) null
+                else DummyCloudRepository.categories[categorySpinner.selectedItemPosition - 1].id
+                val governorate = if (locationSpinner.selectedItemPosition == 0) null
+                else locations[locationSpinner.selectedItemPosition]
+                val minimum = when (ratingSpinner.selectedItemPosition) {
+                    1 -> 3.0
+                    2 -> 4.0
+                    3 -> 4.5
+                    else -> 0.0
+                }
+                val results = DummyCloudRepository.searchProfessionals(
+                    queryInput.text.toString(),
+                    categoryId,
+                    governorate,
+                    minimum,
+                    currentLanguage()
+                )
+                renderProfessionalResults(resultsContainer, results)
+            }
+        }
+        column.addView(searchButton, matchWrap())
+        column.addView(space(16))
+        column.addView(sectionText(getString(R.string.results)))
+        column.addView(resultsContainer, matchWrap())
+
+        renderProfessionalResults(
+            resultsContainer,
+            DummyCloudRepository.searchProfessionals("", preselectedCategoryId, null, 0.0, currentLanguage())
+        )
+
+        replaceContent(scroll)
+    }
+
+    private fun renderProfessionalResults(container: LinearLayout, professionals: List<Professional>) {
+        container.removeAllViews()
+        if (professionals.isEmpty()) {
+            container.addView(bodyText(getString(R.string.no_results)))
+            return
+        }
+        professionals.forEach { professional ->
+            container.addView(professionalCard(professional))
+            container.addView(space(12))
+        }
+    }
+
+    private fun renderSaved() {
+        clearBackNavigation()
+        toolbar.title = getString(R.string.saved)
+        val (scroll, column) = scrollColumn()
+        column.addView(titleText(getString(R.string.saved_professionals)))
+
+        if (!requireSignedIn(showPrompt = false)) {
+            column.addView(bodyText(getString(R.string.sign_in_to_save)))
+            column.addView(Button(this).apply {
+                text = getString(R.string.sign_in)
+                setOnClickListener { showSignInDialog(UserRole.CLIENT) }
+            })
+        } else {
+            val saved = DummyCloudRepository.savedProfessionals()
+            if (saved.isEmpty()) {
+                column.addView(bodyText(getString(R.string.no_saved_professionals)))
             } else {
-                greetingTextView.text = getString(R.string.greeting, name)
+                saved.forEach { professional ->
+                    column.addView(professionalCard(professional))
+                    column.addView(space(12))
+                }
             }
+        }
+        replaceContent(scroll)
+    }
+
+    private fun renderAccount() {
+        clearBackNavigation()
+        toolbar.title = getString(R.string.account)
+        val (scroll, column) = scrollColumn()
+        val user = DummyCloudRepository.currentUser
+
+        if (user == null) {
+            column.addView(titleText(getString(R.string.account_guest_title)))
+            column.addView(bodyText(getString(R.string.account_guest_body)))
+            column.addView(Button(this).apply {
+                text = getString(R.string.sign_in_as_client)
+                setOnClickListener { showSignInDialog(UserRole.CLIENT) }
+            })
+            column.addView(Button(this).apply {
+                text = getString(R.string.sign_in_as_professional)
+                setOnClickListener { showSignInDialog(UserRole.PROFESSIONAL) }
+            })
+        } else {
+            column.addView(titleText(user.displayName))
+            column.addView(bodyText("${user.role.name} • ${user.email}"))
+            column.addView(space(12))
+
+            column.addView(Button(this).apply {
+                text = getString(R.string.notifications)
+                setOnClickListener { renderNotifications() }
+            })
+
+            if (user.role == UserRole.PROFESSIONAL) {
+                column.addView(Button(this).apply {
+                    text = getString(R.string.manage_professional_profile)
+                    setOnClickListener { renderProfessionalManagement() }
+                })
+                column.addView(Button(this).apply {
+                    text = getString(R.string.create_post)
+                    setOnClickListener { renderCreatePost() }
+                })
+            }
+
+            column.addView(Button(this).apply {
+                text = getString(R.string.sign_out)
+                setOnClickListener {
+                    DummyCloudRepository.signOut()
+                    preferences.clearSession()
+                    renderAccount()
+                }
+            })
+        }
+
+        column.addView(space(20))
+        column.addView(sectionText(getString(R.string.settings)))
+        column.addView(Button(this).apply {
+            text = getString(R.string.change_language)
+            setOnClickListener { showLanguageDialog(firstLaunch = false) }
+        })
+        column.addView(Button(this).apply {
+            text = getString(R.string.terms_privacy_rules)
+            setOnClickListener {
+                MaterialAlertDialogBuilder(this@MainActivity)
+                    .setTitle(R.string.terms_privacy_rules)
+                    .setMessage(R.string.legal_placeholder)
+                    .setPositiveButton(android.R.string.ok, null)
+                    .show()
+            }
+        })
+        column.addView(space(16))
+        column.addView(dummyStatusCard())
+        replaceContent(scroll)
+    }
+
+    private fun renderProfessionalProfile(professional: Professional) {
+        showDetailBack(professional.publicName.resolve(currentLanguage())) { renderActiveTab() }
+        val (scroll, column) = scrollColumn()
+
+        column.addView(titleText(professional.publicName.resolve(currentLanguage())))
+        column.addView(bodyText(DummyCloudRepository.categoryName(professional.primaryCategoryId, currentLanguage())))
+        column.addView(ratingSummary(professional))
+        column.addView(bodyText("📍 ${professional.locationLabel.resolve(currentLanguage())} • ${professional.serviceRadiusKm} km"))
+        column.addView(bodyText(getString(R.string.location_privacy_format, locationModeText(professional.locationMode))))
+        column.addView(space(8))
+        column.addView(bodyText(professional.description.resolve(currentLanguage())))
+
+        val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        val saveButton = Button(this).apply {
+            text = if (DummyCloudRepository.isSaved(professional.id)) getString(R.string.unsave) else getString(R.string.save)
+            setOnClickListener {
+                if (requireSignedIn()) {
+                    val saved = DummyCloudRepository.toggleSaved(professional.id)
+                    text = if (saved) getString(R.string.unsave) else getString(R.string.save)
+                }
+            }
+        }
+        val callButton = Button(this).apply {
+            text = getString(R.string.call)
+            setOnClickListener { confirmPhoneCall(professional.phone) }
+        }
+        actions.addView(saveButton, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        actions.addView(callButton, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        column.addView(actions)
+
+        column.addView(Button(this).apply {
+            text = getString(R.string.open_social_link)
+            setOnClickListener { openExternalUrl(professional.socialUrl) }
+        })
+
+        column.addView(space(18))
+        column.addView(sectionText(getString(R.string.services)))
+        professional.services.forEach { service ->
+            column.addView(serviceCard(service))
+            column.addView(space(10))
+        }
+
+        column.addView(space(10))
+        column.addView(sectionText(getString(R.string.reviews)))
+        column.addView(bodyText(getString(R.string.unverified_review_notice)))
+        if (DummyCloudRepository.currentUser?.role == UserRole.CLIENT) {
+            column.addView(Button(this).apply {
+                text = getString(R.string.write_review)
+                setOnClickListener { showReviewDialog(professional) }
+            })
+        } else if (DummyCloudRepository.currentUser == null) {
+            column.addView(Button(this).apply {
+                text = getString(R.string.sign_in_to_review)
+                setOnClickListener { showSignInDialog(UserRole.CLIENT) }
+            })
+        }
+        val reviews = DummyCloudRepository.reviewsForProfessional(professional.id)
+        if (reviews.isEmpty()) {
+            column.addView(bodyText(getString(R.string.no_reviews_yet)))
+        } else {
+            reviews.forEach { review ->
+                column.addView(bodyText("${"★".repeat(review.rating)}  ${review.authorName}\n${review.text}"))
+                column.addView(space(8))
+            }
+        }
+
+        column.addView(space(16))
+        column.addView(sectionText(getString(R.string.posts)))
+        DummyCloudRepository.postsForProfessional(professional.id).forEach { post ->
+            column.addView(postCard(post))
+            column.addView(space(10))
+        }
+        replaceContent(scroll)
+    }
+
+    private fun renderProfessionalManagement() {
+        val user = DummyCloudRepository.currentUser
+        val professional = user?.professionalId?.let { DummyCloudRepository.professionalById(it) }
+        if (user?.role != UserRole.PROFESSIONAL || professional == null) {
+            renderAccount()
+            return
+        }
+
+        showDetailBack(getString(R.string.manage_professional_profile)) { renderAccount() }
+        val (scroll, column) = scrollColumn()
+        column.addView(titleText(getString(R.string.manage_professional_profile)))
+        column.addView(bodyText(getString(R.string.professional_management_dummy_notice)))
+
+        val nameInput = EditText(this).apply {
+            hint = getString(R.string.public_name)
+            setText(professional.publicName.resolve(currentLanguage()))
+        }
+        val descriptionInput = EditText(this).apply {
+            hint = getString(R.string.description)
+            setText(professional.description.resolve(currentLanguage()))
+            minLines = 3
+        }
+        val phoneInput = EditText(this).apply {
+            hint = getString(R.string.phone)
+            setText(professional.phone)
+            inputType = InputType.TYPE_CLASS_PHONE
+        }
+        val radiusInput = EditText(this).apply {
+            hint = getString(R.string.service_radius)
+            setText(professional.serviceRadiusKm.toString())
+            inputType = InputType.TYPE_CLASS_NUMBER
+        }
+        val privacySpinner = Spinner(this).apply {
+            adapter = ArrayAdapter(
+                this@MainActivity,
+                android.R.layout.simple_spinner_dropdown_item,
+                listOf(
+                    getString(R.string.location_exact),
+                    getString(R.string.location_approximate),
+                    getString(R.string.location_city_only)
+                )
+            )
+            setSelection(
+                when (professional.locationMode) {
+                    LocationMode.EXACT -> 0
+                    LocationMode.APPROXIMATE -> 1
+                    LocationMode.CITY_ONLY -> 2
+                }
+            )
+        }
+
+        column.addView(nameInput, matchWrap())
+        column.addView(descriptionInput, matchWrap())
+        column.addView(phoneInput, matchWrap())
+        column.addView(radiusInput, matchWrap())
+        column.addView(labelText(getString(R.string.public_location_precision)))
+        column.addView(privacySpinner, matchWrap())
+
+        var profileImageUrl = professional.profileImageUrl
+        val uploadStatus = bodyText(profileImageUrl ?: getString(R.string.no_dummy_image_attached))
+        column.addView(Button(this).apply {
+            text = getString(R.string.upload_profile_image_dummy)
+            setOnClickListener {
+                profileImageUrl = DummyStorageService.uploadImage("profile")
+                uploadStatus.text = profileImageUrl
+                Toast.makeText(this@MainActivity, R.string.dummy_upload_complete, Toast.LENGTH_SHORT).show()
+            }
+        })
+        column.addView(uploadStatus)
+
+        column.addView(Button(this).apply {
+            text = getString(R.string.save_to_dummy_cloud)
+            setOnClickListener {
+                val mode = when (privacySpinner.selectedItemPosition) {
+                    0 -> LocationMode.EXACT
+                    2 -> LocationMode.CITY_ONLY
+                    else -> LocationMode.APPROXIMATE
+                }
+                DummyCloudRepository.updateProfessional(
+                    professional.id,
+                    nameInput.text.toString().ifBlank { professional.publicName.resolve(currentLanguage()) },
+                    descriptionInput.text.toString(),
+                    phoneInput.text.toString(),
+                    radiusInput.text.toString().toIntOrNull()?.coerceIn(1, 200) ?: professional.serviceRadiusKm,
+                    mode,
+                    profileImageUrl
+                )
+                Toast.makeText(this@MainActivity, R.string.saved_in_dummy_repository, Toast.LENGTH_SHORT).show()
+            }
+        })
+
+        column.addView(space(20))
+        column.addView(sectionText(getString(R.string.manage_services)))
+        professional.services.forEach { column.addView(serviceCard(it)) }
+        column.addView(Button(this).apply {
+            text = getString(R.string.add_service)
+            setOnClickListener { showAddServiceDialog(professional) }
+        })
+        replaceContent(scroll)
+    }
+
+    private fun renderCreatePost() {
+        val user = DummyCloudRepository.currentUser
+        val professionalId = user?.professionalId
+        if (user?.role != UserRole.PROFESSIONAL || professionalId == null) {
+            renderAccount()
+            return
+        }
+
+        showDetailBack(getString(R.string.create_post)) { renderAccount() }
+        val (scroll, column) = scrollColumn()
+        column.addView(titleText(getString(R.string.create_post)))
+        column.addView(bodyText(getString(R.string.post_dummy_notice)))
+
+        val textInput = EditText(this).apply {
+            hint = getString(R.string.post_text_hint)
+            minLines = 5
+            gravity = Gravity.TOP
+        }
+        val imageStatus = bodyText(getString(R.string.no_dummy_image_attached))
+        attachedDummyImageUrl = null
+
+        column.addView(textInput, matchWrap())
+        column.addView(Button(this).apply {
+            text = getString(R.string.attach_image_dummy)
+            setOnClickListener {
+                attachedDummyImageUrl = DummyStorageService.uploadImage("post")
+                imageStatus.text = attachedDummyImageUrl
+                Toast.makeText(this@MainActivity, R.string.dummy_upload_complete, Toast.LENGTH_SHORT).show()
+            }
+        })
+        column.addView(imageStatus)
+        column.addView(Button(this).apply {
+            text = getString(R.string.publish)
+            setOnClickListener {
+                val text = textInput.text.toString().trim()
+                if (text.isBlank()) {
+                    textInput.error = getString(R.string.required_field)
+                } else {
+                    DummyCloudRepository.createPost(professionalId, text, attachedDummyImageUrl)
+                    Toast.makeText(this@MainActivity, R.string.post_published_dummy, Toast.LENGTH_SHORT).show()
+                    activeTab = R.id.nav_home
+                    bottomNavigation.selectedItemId = R.id.nav_home
+                    renderHome()
+                }
+            }
+        })
+        replaceContent(scroll)
+    }
+
+    private fun renderNotifications() {
+        showDetailBack(getString(R.string.notifications)) { renderAccount() }
+        val (scroll, column) = scrollColumn()
+        column.addView(titleText(getString(R.string.notifications)))
+        column.addView(bodyText(getString(R.string.notifications_dummy_notice)))
+        DummyCloudRepository.notifications.forEach { notification ->
+            val card = basicCard()
+            val box = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(14), dp(12), dp(14), dp(12))
+                addView(sectionText(notification.title.resolve(currentLanguage())))
+                addView(bodyText(notification.body.resolve(currentLanguage())))
+            }
+            card.addView(box)
+            column.addView(card)
+            column.addView(space(10))
+            notification.isRead = true
+        }
+        replaceContent(scroll)
+    }
+
+    private fun professionalCard(professional: Professional): View {
+        val card = basicCard().apply {
+            isClickable = true
+            isFocusable = true
+            setOnClickListener { renderProfessionalProfile(professional) }
+        }
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(14), dp(14), dp(14), dp(14))
+        }
+        box.addView(sectionText(professional.publicName.resolve(currentLanguage())))
+        box.addView(bodyText(DummyCloudRepository.categoryName(professional.primaryCategoryId, currentLanguage())))
+        box.addView(ratingSummary(professional))
+        box.addView(bodyText("📍 ${professional.locationLabel.resolve(currentLanguage())}"))
+        box.addView(bodyText(professional.description.resolve(currentLanguage())))
+        val saved = if (DummyCloudRepository.isSaved(professional.id)) getString(R.string.saved) else getString(R.string.save)
+        box.addView(bodyText("☆ $saved"))
+        card.addView(box)
+        return card
+    }
+
+    private fun postCard(post: Post): View {
+        val professional = DummyCloudRepository.professionalById(post.professionalId)
+        val card = basicCard()
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(14), dp(14), dp(14), dp(14))
+        }
+        box.addView(TextView(this).apply {
+            text = professional?.publicName?.resolve(currentLanguage()) ?: getString(R.string.professional)
+            textSize = 16f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setOnClickListener { if (professional != null) renderProfessionalProfile(professional) }
+        })
+        box.addView(bodyText(post.publishedLabel.resolve(currentLanguage())))
+        box.addView(space(6))
+        box.addView(bodyText(post.text.resolve(currentLanguage())))
+        if (post.imageUrl != null) {
+            box.addView(bodyText(getString(R.string.dummy_image_reference, post.imageUrl ?: "")))
+        }
+        val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        val like = Button(this).apply {
+            text = getString(R.string.like_with_count, post.likes)
+            setOnClickListener {
+                if (requireSignedIn()) {
+                    DummyCloudRepository.toggleLike(post.id)
+                    text = getString(R.string.like_with_count, post.likes)
+                }
+            }
+        }
+        val comment = Button(this).apply {
+            text = getString(R.string.comment_with_count, post.comments)
+            setOnClickListener {
+                if (requireSignedIn()) showCommentDialog(post, this)
+            }
+        }
+        val share = Button(this).apply {
+            text = getString(R.string.share)
+            setOnClickListener { sharePost(post, professional) }
+        }
+        actions.addView(like, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        actions.addView(comment, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        actions.addView(share, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        box.addView(actions)
+        card.addView(box)
+        return card
+    }
+
+    private fun serviceCard(service: Service): View {
+        val card = basicCard()
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(12), dp(12), dp(12), dp(12))
+        }
+        box.addView(sectionText(service.title.resolve(currentLanguage())))
+        box.addView(bodyText(service.description.resolve(currentLanguage())))
+        box.addView(bodyText(priceText(service)))
+        service.priceDetails?.let { box.addView(bodyText(it.resolve(currentLanguage()))) }
+        card.addView(box)
+        return card
+    }
+
+    private fun ratingSummary(professional: Professional): TextView {
+        return if (professional.reviewCount == 0) {
+            bodyText(getString(R.string.no_reviews_yet))
+        } else {
+            bodyText(getString(R.string.rating_summary, professional.rating, professional.reviewCount))
         }
     }
 
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menuInflater.inflate(R.menu.toolbar_menu, menu)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            R.id.action_settings -> {
-                Toast.makeText(this, R.string.settings_selected, Toast.LENGTH_SHORT).show()
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
+    private fun priceText(service: Service): String {
+        val amount = service.minAmount?.let { formatAmount(it, service.currency) }
+        val maxAmount = service.maxAmount?.let { formatAmount(it, service.currency) }
+        return when (service.priceMode) {
+            PriceMode.NONE -> getString(R.string.price_not_listed)
+            PriceMode.FIXED -> getString(R.string.price_fixed, amount ?: "")
+            PriceMode.STARTING_FROM -> getString(R.string.price_starting_from, amount ?: "")
+            PriceMode.RANGE -> getString(R.string.price_range, amount ?: "", maxAmount ?: "")
+            PriceMode.DESCRIPTION_ONLY -> getString(R.string.price_description_only)
         }
     }
+
+    private fun formatAmount(amount: Double, currency: String?): String {
+        val formatted = NumberFormat.getNumberInstance(Locale.US).format(amount)
+        return if (currency.isNullOrBlank()) formatted else "$formatted $currency"
+    }
+
+    private fun showSignInDialog(role: UserRole) {
+        val form = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), 0, dp(20), 0)
+        }
+        val name = EditText(this).apply { hint = getString(R.string.display_name) }
+        val email = EditText(this).apply {
+            hint = getString(R.string.email)
+            inputType = InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+        }
+        val password = EditText(this).apply {
+            hint = getString(R.string.password)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        }
+        form.addView(name)
+        form.addView(email)
+        form.addView(password)
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle(if (role == UserRole.CLIENT) R.string.sign_in_as_client else R.string.sign_in_as_professional)
+            .setMessage(R.string.dummy_auth_notice)
+            .setView(form)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.continue_label) { _, _ ->
+                val displayName = name.text.toString().trim().ifBlank { getString(R.string.demo_user) }
+                val address = email.text.toString().trim().ifBlank { "demo@khedmati.local" }
+                val user = DummyCloudRepository.signIn(displayName, address, role)
+                preferences.saveSession(user.displayName, user.email, user.role)
+                Toast.makeText(this, R.string.signed_in_dummy, Toast.LENGTH_SHORT).show()
+                renderAccount()
+            }
+            .show()
+    }
+
+    private fun requireSignedIn(showPrompt: Boolean = true): Boolean {
+        if (DummyCloudRepository.currentUser != null) return true
+        if (showPrompt) {
+            MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.sign_in_required)
+                .setMessage(R.string.sign_in_required_message)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(R.string.sign_in) { _, _ -> showSignInDialog(UserRole.CLIENT) }
+                .show()
+        }
+        return false
+    }
+
+    private fun showCommentDialog(post: Post, button: Button) {
+        val input = EditText(this).apply {
+            hint = getString(R.string.comment_hint)
+            minLines = 2
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.add_comment)
+            .setView(input)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.add) { _, _ ->
+                DummyCloudRepository.addComment(post.id, input.text.toString())
+                button.text = getString(R.string.comment_with_count, post.comments)
+            }
+            .show()
+    }
+
+    private fun showReviewDialog(professional: Professional) {
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), 0, dp(20), 0)
+        }
+        val rating = RatingBar(this, null, android.R.attr.ratingBarStyleSmall).apply {
+            numStars = 5
+            stepSize = 1f
+            this.rating = 5f
+        }
+        val input = EditText(this).apply {
+            hint = getString(R.string.review_hint)
+            minLines = 3
+        }
+        box.addView(rating)
+        box.addView(input)
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.write_review)
+            .setMessage(R.string.unverified_review_notice)
+            .setView(box)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.save) { _, _ ->
+                val reviewText = input.text.toString().trim()
+                if (reviewText.isNotBlank()) {
+                    DummyCloudRepository.addOrUpdateReview(professional.id, rating.rating.toInt().coerceIn(1, 5), reviewText)
+                    renderProfessionalProfile(professional)
+                }
+            }
+            .show()
+    }
+
+    private fun showAddServiceDialog(professional: Professional) {
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), 0, dp(20), 0)
+        }
+        val title = EditText(this).apply { hint = getString(R.string.service_title) }
+        val amount = EditText(this).apply {
+            hint = getString(R.string.optional_price)
+            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+        }
+        val currency = Spinner(this).apply {
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, listOf("USD", "LBP"))
+        }
+        box.addView(title)
+        box.addView(amount)
+        box.addView(currency)
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.add_service)
+            .setView(box)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.add) { _, _ ->
+                val serviceTitle = title.text.toString().trim()
+                if (serviceTitle.isNotBlank()) {
+                    DummyCloudRepository.addService(
+                        professional.id,
+                        serviceTitle,
+                        amount.text.toString().toDoubleOrNull(),
+                        currency.selectedItem.toString()
+                    )
+                    renderProfessionalManagement()
+                }
+            }
+            .show()
+    }
+
+    private fun confirmPhoneCall(phone: String) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.confirm_call)
+            .setMessage(getString(R.string.confirm_call_message, phone))
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.call) { _, _ ->
+                startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:${Uri.encode(phone)}")))
+            }
+            .show()
+    }
+
+    private fun openExternalUrl(url: String) {
+        runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+            .onFailure { Toast.makeText(this, R.string.cannot_open_link, Toast.LENGTH_SHORT).show() }
+    }
+
+    private fun sharePost(post: Post, professional: Professional?) {
+        val body = buildString {
+            professional?.let { append(it.publicName.resolve(currentLanguage())).append("\n") }
+            append(post.text.resolve(currentLanguage()))
+            append("\n")
+            append(getString(R.string.share_fallback_note))
+        }
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, body)
+        }
+        startActivity(Intent.createChooser(intent, getString(R.string.share)))
+    }
+
+    private fun showLanguageDialog(firstLaunch: Boolean) {
+        val labels = arrayOf("English", "العربية", "Français")
+        MaterialAlertDialogBuilder(this)
+            .setTitle(if (firstLaunch) R.string.choose_language else R.string.change_language)
+            .setCancelable(!firstLaunch)
+            .setSingleChoiceItems(labels, when (preferences.language) {
+                "ar" -> 1
+                "fr" -> 2
+                else -> 0
+            }) { dialog, which ->
+                val tag = when (which) {
+                    1 -> "ar"
+                    2 -> "fr"
+                    else -> "en"
+                }
+                preferences.language = tag
+                preferences.languageChosen = true
+                dialog.dismiss()
+                AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(tag))
+            }
+            .show()
+    }
+
+    private fun locationModeText(mode: LocationMode): String = when (mode) {
+        LocationMode.EXACT -> getString(R.string.location_exact)
+        LocationMode.APPROXIMATE -> getString(R.string.location_approximate)
+        LocationMode.CITY_ONLY -> getString(R.string.location_city_only)
+    }
+
+    private fun dummyStatusCard(): View {
+        val card = basicCard()
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+        }
+        box.addView(sectionText(getString(R.string.dummy_backend_title)))
+        box.addView(bodyText(getString(R.string.dummy_backend_body)))
+        box.addView(bodyText(DummyCloudRepository.DATABASE_STATUS))
+        box.addView(bodyText(DummyStorageService.STATUS))
+        box.addView(bodyText(DummyCloudRepository.NOTIFICATION_STATUS))
+        card.addView(box)
+        return card
+    }
+
+    private fun basicCard(): MaterialCardView = MaterialCardView(this).apply {
+        radius = dp(14).toFloat()
+        cardElevation = dp(1).toFloat()
+        strokeWidth = dp(1)
+        setContentPadding(0, 0, 0, 0)
+    }
+
+    private fun titleText(textValue: String): TextView = TextView(this).apply {
+        text = textValue
+        textSize = 26f
+        setTypeface(typeface, android.graphics.Typeface.BOLD)
+        setPadding(0, 0, 0, dp(6))
+    }
+
+    private fun sectionText(textValue: String): TextView = TextView(this).apply {
+        text = textValue
+        textSize = 18f
+        setTypeface(typeface, android.graphics.Typeface.BOLD)
+        setPadding(0, dp(4), 0, dp(6))
+    }
+
+    private fun labelText(textValue: String): TextView = TextView(this).apply {
+        text = textValue
+        textSize = 14f
+        setTypeface(typeface, android.graphics.Typeface.BOLD)
+        setPadding(0, dp(10), 0, 0)
+    }
+
+    private fun bodyText(textValue: String): TextView = TextView(this).apply {
+        text = textValue
+        textSize = 15f
+        setLineSpacing(0f, 1.08f)
+        setPadding(0, dp(3), 0, dp(3))
+    }
+
+    private fun space(heightDp: Int): View = View(this).apply {
+        layoutParams = LinearLayout.LayoutParams(1, dp(heightDp))
+    }
+
+    private fun matchWrap(): LinearLayout.LayoutParams = LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams.MATCH_PARENT,
+        LinearLayout.LayoutParams.WRAP_CONTENT
+    )
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 }
