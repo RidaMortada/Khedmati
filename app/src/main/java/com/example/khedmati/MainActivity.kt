@@ -71,7 +71,6 @@ class MainActivity : AppCompatActivity() {
             renderActiveTab()
             true
         }
-
         bottomNavigation.selectedItemId = R.id.nav_home
 
         if (!preferences.languageChosen) {
@@ -125,18 +124,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun scrollColumn(): Pair<ScrollView, LinearLayout> {
-        val scroll = ScrollView(this).apply {
-            isFillViewport = true
-        }
+        val scroll = ScrollView(this).apply { isFillViewport = true }
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(16), dp(16), dp(16), dp(28))
         }
         scroll.addView(
             column,
-            ScrollView.LayoutParams(
-                ScrollView.LayoutParams.MATCH_PARENT,
-                ScrollView.LayoutParams.WRAP_CONTENT
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
             )
         )
         return scroll to column
@@ -155,10 +152,7 @@ class MainActivity : AppCompatActivity() {
         column.addView(sectionText(getString(R.string.categories)))
 
         val horizontal = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false }
-        val chips = ChipGroup(this).apply {
-            isSingleLine = true
-            isSingleSelection = false
-        }
+        val chips = ChipGroup(this).apply { isSingleLine = true }
         DummyCloudRepository.categories.forEach { category ->
             chips.addView(Chip(this).apply {
                 text = "${category.icon} ${category.name.resolve(currentLanguage())}"
@@ -179,7 +173,6 @@ class MainActivity : AppCompatActivity() {
             column.addView(postCard(post))
             column.addView(space(12))
         }
-
         replaceContent(scroll)
     }
 
@@ -229,7 +222,7 @@ class MainActivity : AppCompatActivity() {
         column.addView(ratingSpinner, matchWrap())
 
         val locationActions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        val nearMe = Button(this).apply {
+        locationActions.addView(Button(this).apply {
             text = getString(R.string.near_me_dummy)
             setOnClickListener {
                 MaterialAlertDialogBuilder(this@MainActivity)
@@ -238,8 +231,8 @@ class MainActivity : AppCompatActivity() {
                     .setPositiveButton(android.R.string.ok) { _, _ -> locationSpinner.setSelection(1) }
                     .show()
             }
-        }
-        val map = Button(this).apply {
+        }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        locationActions.addView(Button(this).apply {
             text = getString(R.string.map_dummy)
             setOnClickListener {
                 MaterialAlertDialogBuilder(this@MainActivity)
@@ -248,13 +241,11 @@ class MainActivity : AppCompatActivity() {
                     .setPositiveButton(android.R.string.ok, null)
                     .show()
             }
-        }
-        locationActions.addView(nearMe, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        locationActions.addView(map, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         column.addView(locationActions)
 
         val resultsContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        val searchButton = Button(this).apply {
+        column.addView(Button(this).apply {
             text = getString(R.string.search)
             setOnClickListener {
                 val categoryId = if (categorySpinner.selectedItemPosition == 0) null
@@ -267,17 +258,18 @@ class MainActivity : AppCompatActivity() {
                     3 -> 4.5
                     else -> 0.0
                 }
-                val results = DummyCloudRepository.searchProfessionals(
-                    queryInput.text.toString(),
-                    categoryId,
-                    governorate,
-                    minimum,
-                    currentLanguage()
+                renderProfessionalResults(
+                    resultsContainer,
+                    DummyCloudRepository.searchProfessionals(
+                        queryInput.text.toString(),
+                        categoryId,
+                        governorate,
+                        minimum,
+                        currentLanguage()
+                    )
                 )
-                renderProfessionalResults(resultsContainer, results)
             }
-        }
-        column.addView(searchButton, matchWrap())
+        }, matchWrap())
         column.addView(space(16))
         column.addView(sectionText(getString(R.string.results)))
         column.addView(resultsContainer, matchWrap())
@@ -286,7 +278,6 @@ class MainActivity : AppCompatActivity() {
             resultsContainer,
             DummyCloudRepository.searchProfessionals("", preselectedCategoryId, null, 0.0, currentLanguage())
         )
-
         replaceContent(scroll)
     }
 
@@ -349,12 +340,10 @@ class MainActivity : AppCompatActivity() {
             column.addView(titleText(user.displayName))
             column.addView(bodyText("${user.role.name} • ${user.email}"))
             column.addView(space(12))
-
             column.addView(Button(this).apply {
                 text = getString(R.string.notifications)
                 setOnClickListener { renderNotifications() }
             })
-
             if (user.role == UserRole.PROFESSIONAL) {
                 column.addView(Button(this).apply {
                     text = getString(R.string.manage_professional_profile)
@@ -365,7 +354,6 @@ class MainActivity : AppCompatActivity() {
                     setOnClickListener { renderCreatePost() }
                 })
             }
-
             column.addView(Button(this).apply {
                 text = getString(R.string.sign_out)
                 setOnClickListener {
@@ -414,8 +402,8 @@ class MainActivity : AppCompatActivity() {
             text = if (DummyCloudRepository.isSaved(professional.id)) getString(R.string.unsave) else getString(R.string.save)
             setOnClickListener {
                 if (requireSignedIn()) {
-                    val saved = DummyCloudRepository.toggleSaved(professional.id)
-                    text = if (saved) getString(R.string.unsave) else getString(R.string.save)
+                    val isSaved = DummyCloudRepository.toggleSaved(professional.id)
+                    text = if (isSaved) getString(R.string.unsave) else getString(R.string.save)
                 }
             }
         }
@@ -426,7 +414,6 @@ class MainActivity : AppCompatActivity() {
         actions.addView(saveButton, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         actions.addView(callButton, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         column.addView(actions)
-
         column.addView(Button(this).apply {
             text = getString(R.string.open_social_link)
             setOnClickListener { openExternalUrl(professional.socialUrl) }
@@ -442,17 +429,18 @@ class MainActivity : AppCompatActivity() {
         column.addView(space(10))
         column.addView(sectionText(getString(R.string.reviews)))
         column.addView(bodyText(getString(R.string.unverified_review_notice)))
-        if (DummyCloudRepository.currentUser?.role == UserRole.CLIENT) {
-            column.addView(Button(this).apply {
+        when (DummyCloudRepository.currentUser?.role) {
+            UserRole.CLIENT -> column.addView(Button(this).apply {
                 text = getString(R.string.write_review)
                 setOnClickListener { showReviewDialog(professional) }
             })
-        } else if (DummyCloudRepository.currentUser == null) {
-            column.addView(Button(this).apply {
+            null -> column.addView(Button(this).apply {
                 text = getString(R.string.sign_in_to_review)
                 setOnClickListener { showSignInDialog(UserRole.CLIENT) }
             })
+            else -> Unit
         }
+
         val reviews = DummyCloudRepository.reviewsForProfessional(professional.id)
         if (reviews.isEmpty()) {
             column.addView(bodyText(getString(R.string.no_reviews_yet)))
@@ -593,7 +581,6 @@ class MainActivity : AppCompatActivity() {
         }
         val imageStatus = bodyText(getString(R.string.no_dummy_image_attached))
         attachedDummyImageUrl = null
-
         column.addView(textInput, matchWrap())
         column.addView(Button(this).apply {
             text = getString(R.string.attach_image_dummy)
@@ -658,8 +645,8 @@ class MainActivity : AppCompatActivity() {
         box.addView(ratingSummary(professional))
         box.addView(bodyText("📍 ${professional.locationLabel.resolve(currentLanguage())}"))
         box.addView(bodyText(professional.description.resolve(currentLanguage())))
-        val saved = if (DummyCloudRepository.isSaved(professional.id)) getString(R.string.saved) else getString(R.string.save)
-        box.addView(bodyText("☆ $saved"))
+        val savedLabel = if (DummyCloudRepository.isSaved(professional.id)) getString(R.string.saved) else getString(R.string.save)
+        box.addView(bodyText("☆ $savedLabel"))
         card.addView(box)
         return card
     }
@@ -675,16 +662,15 @@ class MainActivity : AppCompatActivity() {
             text = professional?.publicName?.resolve(currentLanguage()) ?: getString(R.string.professional)
             textSize = 16f
             setTypeface(typeface, android.graphics.Typeface.BOLD)
-            setOnClickListener { if (professional != null) renderProfessionalProfile(professional) }
+            setOnClickListener { professional?.let { renderProfessionalProfile(it) } }
         })
         box.addView(bodyText(post.publishedLabel.resolve(currentLanguage())))
         box.addView(space(6))
         box.addView(bodyText(post.text.resolve(currentLanguage())))
-        if (post.imageUrl != null) {
-            box.addView(bodyText(getString(R.string.dummy_image_reference, post.imageUrl ?: "")))
-        }
+        post.imageUrl?.let { box.addView(bodyText(getString(R.string.dummy_image_reference, it))) }
+
         val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        val like = Button(this).apply {
+        val likeButton = Button(this).apply {
             text = getString(R.string.like_with_count, post.likes)
             setOnClickListener {
                 if (requireSignedIn()) {
@@ -693,19 +679,17 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-        val comment = Button(this).apply {
+        val commentButton = Button(this).apply {
             text = getString(R.string.comment_with_count, post.comments)
-            setOnClickListener {
-                if (requireSignedIn()) showCommentDialog(post, this)
-            }
+            setOnClickListener { if (requireSignedIn()) showCommentDialog(post, this) }
         }
-        val share = Button(this).apply {
+        val shareButton = Button(this).apply {
             text = getString(R.string.share)
             setOnClickListener { sharePost(post, professional) }
         }
-        actions.addView(like, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        actions.addView(comment, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        actions.addView(share, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        actions.addView(likeButton, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        actions.addView(commentButton, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        actions.addView(shareButton, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
         box.addView(actions)
         card.addView(box)
         return card
@@ -725,13 +709,12 @@ class MainActivity : AppCompatActivity() {
         return card
     }
 
-    private fun ratingSummary(professional: Professional): TextView {
-        return if (professional.reviewCount == 0) {
+    private fun ratingSummary(professional: Professional): TextView =
+        if (professional.reviewCount == 0) {
             bodyText(getString(R.string.no_reviews_yet))
         } else {
             bodyText(getString(R.string.rating_summary, professional.rating, professional.reviewCount))
         }
-    }
 
     private fun priceText(service: Service): String {
         val amount = service.minAmount?.let { formatAmount(it, service.currency) }
@@ -837,7 +820,11 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton(R.string.save) { _, _ ->
                 val reviewText = input.text.toString().trim()
                 if (reviewText.isNotBlank()) {
-                    DummyCloudRepository.addOrUpdateReview(professional.id, rating.rating.toInt().coerceIn(1, 5), reviewText)
+                    DummyCloudRepository.addOrUpdateReview(
+                        professional.id,
+                        rating.rating.toInt().coerceIn(1, 5),
+                        reviewText
+                    )
                     renderProfessionalProfile(professional)
                 }
             }
@@ -914,11 +901,14 @@ class MainActivity : AppCompatActivity() {
         MaterialAlertDialogBuilder(this)
             .setTitle(if (firstLaunch) R.string.choose_language else R.string.change_language)
             .setCancelable(!firstLaunch)
-            .setSingleChoiceItems(labels, when (preferences.language) {
-                "ar" -> 1
-                "fr" -> 2
-                else -> 0
-            }) { dialog, which ->
+            .setSingleChoiceItems(
+                labels,
+                when (preferences.language) {
+                    "ar" -> 1
+                    "fr" -> 2
+                    else -> 0
+                }
+            ) { dialog, which ->
                 val tag = when (which) {
                     1 -> "ar"
                     2 -> "fr"
@@ -960,29 +950,29 @@ class MainActivity : AppCompatActivity() {
         setContentPadding(0, 0, 0, 0)
     }
 
-    private fun titleText(textValue: String): TextView = TextView(this).apply {
-        text = textValue
+    private fun titleText(value: String): TextView = TextView(this).apply {
+        text = value
         textSize = 26f
         setTypeface(typeface, android.graphics.Typeface.BOLD)
         setPadding(0, 0, 0, dp(6))
     }
 
-    private fun sectionText(textValue: String): TextView = TextView(this).apply {
-        text = textValue
+    private fun sectionText(value: String): TextView = TextView(this).apply {
+        text = value
         textSize = 18f
         setTypeface(typeface, android.graphics.Typeface.BOLD)
         setPadding(0, dp(4), 0, dp(6))
     }
 
-    private fun labelText(textValue: String): TextView = TextView(this).apply {
-        text = textValue
+    private fun labelText(value: String): TextView = TextView(this).apply {
+        text = value
         textSize = 14f
         setTypeface(typeface, android.graphics.Typeface.BOLD)
         setPadding(0, dp(10), 0, 0)
     }
 
-    private fun bodyText(textValue: String): TextView = TextView(this).apply {
-        text = textValue
+    private fun bodyText(value: String): TextView = TextView(this).apply {
+        text = value
         textSize = 15f
         setLineSpacing(0f, 1.08f)
         setPadding(0, dp(3), 0, dp(3))
