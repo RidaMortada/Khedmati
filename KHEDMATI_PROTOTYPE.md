@@ -45,6 +45,8 @@ This prototype is Android-only because the requested repository/application is K
 - Pure Kotlin model/data files compile with `kotlinc`.
 - Resource XML and AndroidManifest XML were parsed for well-formedness.
 - All app string-resource references were checked against English, Arabic, and French resource files.
-- Basic local unit tests are included for category filtering, one-review-per-client update behavior, and dummy storage URL behavior.
+- Unit tests cover category filtering, one-review-per-client update behavior, and dummy storage URL behavior.
+- A clean GitHub Actions runner using Java 17 and Android SDK 35 successfully ran `./gradlew test assembleDebug` at commit `40bd76965cec5be16396a2d5997ec7d2cfcf3466`.
+- The validated run completed `62` Gradle tasks with `BUILD SUCCESSFUL`; the temporary validation workflow was removed afterward so it does not remain as unnecessary project configuration.
 
-A full Android Gradle build was not run in the generation environment because Android SDK platform 35 is not installed there. Open the project in Android Studio and run `./gradlew test assembleDebug` with Android SDK 35 installed.
+You can open the project in Android Studio and run `./gradlew test assembleDebug` with Android SDK 35 installed.
