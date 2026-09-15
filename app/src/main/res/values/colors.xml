@@ -1,0 +1,16 @@
+<resources>
+    <color name="khedmati_primary">#2C7A68</color>
+    <color name="khedmati_primary_dark">#1F594D</color>
+    <color name="khedmati_primary_container">#DDEFE9</color>
+    <color name="khedmati_on_primary">#FFFFFF</color>
+    <color name="khedmati_secondary">#D39A4A</color>
+    <color name="khedmati_secondary_container">#F9EBCF</color>
+    <color name="khedmati_background">#FFFDF9</color>
+    <color name="khedmati_surface">#FFFFFF</color>
+    <color name="khedmati_surface_soft">#F1F6F3</color>
+    <color name="khedmati_text_primary">#20312C</color>
+    <color name="khedmati_text_secondary">#687771</color>
+    <color name="khedmati_outline">#D7E3DE</color>
+    <color name="khedmati_outline_strong">#B8CEC5</color>
+    <color name="khedmati_heart">#C8465A</color>
+</resources>
