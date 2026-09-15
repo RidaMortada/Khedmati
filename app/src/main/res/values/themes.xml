@@ -23,6 +23,7 @@
 
         <item name="android:buttonStyle">@style/Widget.Khedmati.Button</item>
         <item name="android:editTextStyle">@style/Widget.Khedmati.EditText</item>
+        <item name="chipStyle">@style/Widget.Khedmati.Chip</item>
     </style>
 
     <style name="Widget.Khedmati.Button" parent="@android:style/Widget.Material.Button">
@@ -46,6 +47,23 @@
         <item name="android:textSize">15sp</item>
         <item name="android:minHeight">54dp</item>
         <item name="android:fontFamily">sans-serif</item>
+    </style>
+
+    <style name="Widget.Khedmati.Chip" parent="Widget.Material3.Chip.Assist">
+        <item name="chipBackgroundColor">@color/khedmati_surface</item>
+        <item name="chipStrokeColor">@color/khedmati_outline</item>
+        <item name="chipStrokeWidth">1dp</item>
+        <item name="chipMinHeight">42dp</item>
+        <item name="rippleColor">@color/khedmati_primary_container</item>
+        <item name="android:textColor">@color/khedmati_primary_dark</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearance.Khedmati.Pill</item>
+    </style>
+
+    <style name="ShapeAppearance.Khedmati.Pill">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
     </style>
 
     <style name="TextAppearance.Khedmati.Toolbar" parent="TextAppearance.Material3.TitleLarge">
