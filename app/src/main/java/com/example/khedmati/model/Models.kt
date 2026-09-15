@@ -1,6 +1,5 @@
 package com.example.khedmati.model
 
-enum class UserRole { CLIENT, PROFESSIONAL }
 enum class PriceMode { NONE, FIXED, STARTING_FROM, RANGE, DESCRIPTION_ONLY }
 enum class LocationMode { EXACT, APPROXIMATE, CITY_ONLY }
 
@@ -37,7 +36,7 @@ data class Professional(
     val id: String,
     var publicName: LocalizedText,
     var description: LocalizedText,
-    val primaryCategoryId: String,
+    var primaryCategoryId: String,
     val extraCategoryIds: MutableList<String> = mutableListOf(),
     val services: MutableList<Service> = mutableListOf(),
     var locationLabel: LocalizedText,
@@ -84,7 +83,6 @@ data class NotificationItem(
 data class DummyUser(
     val id: String,
     var displayName: String,
-    val role: UserRole,
     val email: String,
-    val professionalId: String? = null
+    val professionalId: String
 )
