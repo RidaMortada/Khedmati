@@ -10,7 +10,6 @@ import com.example.khedmati.model.PriceMode
 import com.example.khedmati.model.Professional
 import com.example.khedmati.model.Review
 import com.example.khedmati.model.Service
-import com.example.khedmati.model.UserRole
 import java.util.UUID
 
 object DummyCloudRepository {
@@ -166,7 +165,7 @@ object DummyCloudRepository {
             LocalizedText(
                 "A clean distribution panel upgrade completed today in Beirut.",
                 "أنهينا اليوم تحديثاً منظماً للوحة توزيع كهربائية في بيروت.",
-                "Mise à niveau soignée d'un tableau électrique terminée aujourd'hui à Beyrouth."
+                "Mise à niveau soignée d’un tableau électrique terminée aujourd’hui à Beyrouth."
             ),
             imageUrl = "dummy-storage://seed/electrical-panel.jpg",
             likes = 22,
@@ -177,9 +176,9 @@ object DummyCloudRepository {
             "post-2",
             "pro-plumber-1",
             LocalizedText(
-                "Tip: a small hidden leak can raise pump usage significantly.",
-                "نصيحة: التسرب الصغير المخفي قد يرفع استهلاك المضخة بشكل ملحوظ.",
-                "Conseil : une petite fuite cachée peut augmenter fortement l'utilisation de la pompe."
+                "A repaired pump and pipe installation in the Bekaa.",
+                "إصلاح مضخة وتمديد أنابيب في البقاع.",
+                "Réparation d’une pompe et installation de tuyauterie dans la Bekaa."
             ),
             imageUrl = "dummy-storage://seed/plumbing.jpg",
             likes = 15,
@@ -190,9 +189,9 @@ object DummyCloudRepository {
             "post-3",
             "pro-cleaner-1",
             LocalizedText(
-                "Weekly home-cleaning slots are available in Jounieh.",
-                "تتوفر مواعيد أسبوعية لتنظيف المنازل في جونية.",
-                "Des créneaux hebdomadaires de nettoyage sont disponibles à Jounieh."
+                "Before-and-after apartment cleaning work in Jounieh.",
+                "عمل تنظيف شقة قبل وبعد في جونية.",
+                "Nettoyage d’appartement avant/après à Jounieh."
             ),
             imageUrl = "dummy-storage://seed/cleaning.jpg",
             likes = 8,
@@ -202,44 +201,71 @@ object DummyCloudRepository {
     )
 
     val reviews = mutableListOf(
-        Review("review-1", "pro-electric-1", "seed-client-1", 5, "Very responsive and professional.", "Maya"),
-        Review("review-2", "pro-electric-1", "seed-client-2", 4, "Good work and clear explanation.", "Karim"),
-        Review("review-3", "pro-plumber-1", "seed-client-3", 5, "Solved the leak quickly.", "Nadine")
+        Review("review-1", "pro-electric-1", "seed-user-1", 5, "Very responsive and professional.", "Maya"),
+        Review("review-2", "pro-electric-1", "seed-user-2", 4, "Good work and clear explanation.", "Karim"),
+        Review("review-3", "pro-plumber-1", "seed-user-3", 5, "Solved the leak quickly.", "Nadine")
     )
 
     val notifications = mutableListOf(
         NotificationItem(
             "n-1",
             LocalizedText("Welcome to Khedmati", "أهلاً بك في خدمتي", "Bienvenue sur Khedmati"),
-            LocalizedText("This prototype uses simulated notifications only.", "هذا النموذج يستخدم إشعارات تجريبية فقط.", "Ce prototype utilise uniquement des notifications simulées.")
+            LocalizedText("One account can browse, interact and publish work posts.", "حساب واحد يمكنه التصفح والتفاعل ونشر الأعمال.", "Un seul compte permet de parcourir, interagir et publier des travaux.")
         )
     )
 
-    fun restoreSession(name: String, email: String, role: UserRole) {
-        currentUser = DummyUser(
-            id = "local-user",
-            displayName = name,
-            role = role,
-            email = email,
-            professionalId = if (role == UserRole.PROFESSIONAL) "pro-electric-1" else null
-        )
+    private fun userIdFor(email: String): String = "user-${email.trim().lowercase().hashCode()}"
+
+    private fun ensureProfile(userId: String, name: String): String {
+        val profileId = "profile-$userId"
+        if (professionals.none { it.id == profileId }) {
+            professionals.add(
+                0,
+                Professional(
+                    id = profileId,
+                    publicName = LocalizedText(name, name, name),
+                    description = LocalizedText(
+                        "New Khedmati member. Add your services and publish photos of your work.",
+                        "عضو جديد في خدمتي. أضف خدماتك وانشر صور أعمالك.",
+                        "Nouveau membre Khedmati. Ajoutez vos services et publiez des photos de vos travaux."
+                    ),
+                    primaryCategoryId = categories.first().id,
+                    locationLabel = LocalizedText("Beirut", "بيروت", "Beyrouth"),
+                    governorate = "Beirut",
+                    serviceRadiusKm = 20,
+                    locationMode = LocationMode.CITY_ONLY,
+                    rating = 0.0,
+                    reviewCount = 0,
+                    phone = "",
+                    socialUrl = "https://www.instagram.com/",
+                    languages = mutableListOf("Arabic", "English", "French")
+                )
+            )
+        }
+        return profileId
     }
 
-    fun signIn(name: String, email: String, role: UserRole): DummyUser {
-        val user = DummyUser(
-            id = "local-user",
-            displayName = name,
-            role = role,
-            email = email,
-            professionalId = if (role == UserRole.PROFESSIONAL) "pro-electric-1" else null
-        )
+    fun restoreSession(name: String, email: String) {
+        val userId = userIdFor(email)
+        val profileId = ensureProfile(userId, name)
+        currentUser = DummyUser(userId, name, email, profileId)
+    }
+
+    fun signIn(name: String, email: String): DummyUser {
+        val userId = userIdFor(email)
+        val profileId = ensureProfile(userId, name)
+        val user = DummyUser(userId, name, email, profileId)
         currentUser = user
         notifications.add(
             0,
             NotificationItem(
                 UUID.randomUUID().toString(),
                 LocalizedText("Signed in", "تم تسجيل الدخول", "Connexion effectuée"),
-                LocalizedText("Dummy authentication completed locally.", "تم تسجيل الدخول التجريبي محلياً.", "L'authentification fictive a été effectuée localement.")
+                LocalizedText(
+                    "Your single Khedmati account can browse, review, save and publish work.",
+                    "حساب خدمتي الواحد يتيح التصفح والتقييم والحفظ ونشر الأعمال.",
+                    "Votre compte Khedmati unique permet de parcourir, évaluer, enregistrer et publier vos travaux."
+                )
             )
         )
         return user
@@ -251,9 +277,8 @@ object DummyCloudRepository {
         likedPostIds.clear()
     }
 
-    fun categoryName(categoryId: String, language: String): String {
-        return categories.firstOrNull { it.id == categoryId }?.name?.resolve(language) ?: categoryId
-    }
+    fun categoryName(categoryId: String, language: String): String =
+        categories.firstOrNull { it.id == categoryId }?.name?.resolve(language) ?: categoryId
 
     fun professionalById(id: String): Professional? = professionals.firstOrNull { it.id == id }
 
@@ -274,34 +299,27 @@ object DummyCloudRepository {
             .filter { it.reviewCount == 0 || it.rating >= minimumRating }
             .filter { pro ->
                 if (normalized.isBlank()) true
-                else {
-                    val haystack = buildString {
-                        append(pro.publicName.resolve(language)).append(' ')
-                        append(pro.description.resolve(language)).append(' ')
-                        append(categoryName(pro.primaryCategoryId, language)).append(' ')
-                        pro.services.forEach { append(it.title.resolve(language)).append(' ') }
-                    }.lowercase()
-                    normalized in haystack
-                }
+                else buildString {
+                    append(pro.publicName.resolve(language)).append(' ')
+                    append(pro.description.resolve(language)).append(' ')
+                    append(categoryName(pro.primaryCategoryId, language)).append(' ')
+                    pro.services.forEach { append(it.title.resolve(language)).append(' ') }
+                }.lowercase().contains(normalized)
             }
             .sortedWith(compareByDescending<Professional> { it.rating }.thenByDescending { it.reviewCount })
     }
 
     fun isSaved(professionalId: String): Boolean = professionalId in savedProfessionalIds
 
-    fun toggleSaved(professionalId: String): Boolean {
-        return if (professionalId in savedProfessionalIds) {
-            savedProfessionalIds.remove(professionalId)
-            false
-        } else {
-            savedProfessionalIds.add(professionalId)
-            true
-        }
+    fun toggleSaved(professionalId: String): Boolean = if (professionalId in savedProfessionalIds) {
+        savedProfessionalIds.remove(professionalId)
+        false
+    } else {
+        savedProfessionalIds.add(professionalId)
+        true
     }
 
     fun savedProfessionals(): List<Professional> = professionals.filter { it.id in savedProfessionalIds }
-
-    fun isLiked(postId: String): Boolean = postId in likedPostIds
 
     fun toggleLike(postId: String): Boolean {
         val post = posts.firstOrNull { it.id == postId } ?: return false
@@ -320,21 +338,14 @@ object DummyCloudRepository {
         val post = posts.firstOrNull { it.id == postId } ?: return
         if (text.isBlank()) return
         post.comments += 1
-        notifications.add(
-            0,
-            NotificationItem(
-                UUID.randomUUID().toString(),
-                LocalizedText("Comment added", "تمت إضافة التعليق", "Commentaire ajouté"),
-                LocalizedText("Your comment was saved in the dummy repository.", "تم حفظ تعليقك في المستودع التجريبي.", "Votre commentaire a été enregistré dans le dépôt fictif.")
-            )
-        )
     }
 
-    fun reviewsForProfessional(professionalId: String): List<Review> = reviews.filter { it.professionalId == professionalId }
+    fun reviewsForProfessional(professionalId: String): List<Review> =
+        reviews.filter { it.professionalId == professionalId }
 
     fun addOrUpdateReview(professionalId: String, rating: Int, text: String) {
         val user = currentUser ?: return
-        if (user.role != UserRole.CLIENT || rating !in 1..5 || text.isBlank()) return
+        if (rating !in 1..5 || text.isBlank()) return
         val existing = reviews.firstOrNull { it.professionalId == professionalId && it.clientId == user.id }
         if (existing == null) {
             reviews.add(
@@ -385,7 +396,11 @@ object DummyCloudRepository {
             Service(
                 id = UUID.randomUUID().toString(),
                 title = LocalizedText(title, title, title),
-                description = LocalizedText("Added from the local prototype.", "تمت الإضافة من النموذج المحلي.", "Ajouté depuis le prototype local."),
+                description = LocalizedText(
+                    "Added from the local prototype.",
+                    "تمت الإضافة من النموذج المحلي.",
+                    "Ajouté depuis le prototype local."
+                ),
                 priceMode = if (amount == null) PriceMode.NONE else PriceMode.FIXED,
                 minAmount = amount,
                 currency = currency
@@ -394,7 +409,8 @@ object DummyCloudRepository {
     }
 
     fun createPost(professionalId: String, text: String, imageUrl: String?) {
-        if (text.isBlank()) return
+        val user = currentUser ?: return
+        if (user.professionalId != professionalId || text.isBlank()) return
         posts.add(
             0,
             Post(
@@ -402,7 +418,7 @@ object DummyCloudRepository {
                 professionalId = professionalId,
                 text = LocalizedText(text, text, text),
                 imageUrl = imageUrl,
-                publishedLabel = LocalizedText("Just now", "الآن", "À l'instant")
+                publishedLabel = LocalizedText("Just now", "الآن", "À l’instant")
             )
         )
     }
