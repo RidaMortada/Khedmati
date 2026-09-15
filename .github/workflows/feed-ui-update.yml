@@ -1,0 +1,306 @@
+name: Apply friendlier feed UI
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+
+jobs:
+  update-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Update feed interactions
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('app/src/main/java/com/example/khedmati/MainActivity.kt')
+          text = path.read_text(encoding='utf-8')
+
+          if 'import android.text.SpannableString\n' not in text:
+              text = text.replace(
+                  'import android.os.Bundle\n',
+                  'import android.os.Bundle\nimport android.text.SpannableString\nimport android.text.Spanned\nimport android.text.style.StyleSpan\n'
+              )
+
+          field_marker = '    private var pendingPostPreview: ImageView? = null\n'
+          field_block = '''    private var pendingPostPreview: ImageView? = null
+
+    private data class FeedComment(
+        val author: String,
+        val text: String,
+        val time: String
+    )
+
+    private val likedPostsUi = mutableSetOf<String>()
+    private val feedComments = mutableMapOf<String, MutableList<FeedComment>>(
+        "post-1" to mutableListOf(
+            FeedComment("Maya", "Very clean work 👏", "18 min"),
+            FeedComment("Karim", "Nice organization. Which breakers did you use?", "42 min"),
+            FeedComment("Rami", "Professional finish, well done.", "1 h"),
+            FeedComment("Nadine", "I like how clearly everything is labeled.", "1 h")
+        ),
+        "post-2" to mutableListOf(
+            FeedComment("Hadi", "Great repair. The installation looks solid.", "5 h"),
+            FeedComment("Lina", "Do you work around Zahle too?", "8 h")
+        ),
+        "post-3" to mutableListOf(
+            FeedComment("Sara", "The before-and-after difference is impressive!", "2 d")
+        )
+    )
+'''
+          if 'private data class FeedComment' not in text:
+              text = text.replace(field_marker, field_block)
+
+          def replace_between(source: str, start_marker: str, end_marker: str, replacement: str) -> str:
+              start = source.index(start_marker)
+              end = source.index(end_marker, start)
+              return source[:start] + replacement + source[end:]
+
+          new_post_card = '''    private fun postCard(post: Post): View {
+        val professional = DummyCloudRepository.professionalById(post.professionalId)
+        val card = basicCard()
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(14), dp(14), dp(14), dp(12))
+        }
+        box.addView(TextView(this).apply {
+            text = professional?.publicName?.resolve(currentLanguage()) ?: getString(R.string.professional)
+            textSize = 16f
+            setTextColor(Color.parseColor("#23453D"))
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setOnClickListener { professional?.let { renderProfessionalProfile(it) } }
+        })
+        box.addView(bodyText(post.publishedLabel.resolve(currentLanguage())).apply {
+            textSize = 13f
+            setTextColor(Color.parseColor("#7A8984"))
+        })
+        box.addView(space(8))
+        box.addView(postImageView(post, professional))
+        box.addView(space(10))
+        box.addView(bodyText(post.text.resolve(currentLanguage())))
+
+        val commentPreview = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dp(4), 0, dp(4))
+        }
+        renderCommentPreview(commentPreview, post)
+        box.addView(commentPreview)
+
+        val actions = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(6), 0, 0)
+        }
+        val likeButton = Button(this).apply {
+            isAllCaps = false
+            text = likeActionText(post)
+            textSize = 16f
+            setTextColor(Color.parseColor("#B74C5C"))
+            contentDescription = "Like"
+            setOnClickListener {
+                if (requireSignedIn()) {
+                    val liked = DummyCloudRepository.toggleLike(post.id)
+                    if (liked) likedPostsUi.add(post.id) else likedPostsUi.remove(post.id)
+                    text = likeActionText(post)
+                }
+            }
+        }
+        val commentButton = Button(this).apply {
+            isAllCaps = false
+            text = "💬 ${post.comments}"
+            textSize = 15f
+            contentDescription = commentCountLabel(post.comments)
+        }
+        commentButton.setOnClickListener {
+            showCommentsDialog(post, commentButton, commentPreview)
+        }
+        val shareButton = Button(this).apply {
+            isAllCaps = false
+            text = "↗ ${getString(R.string.share)}"
+            textSize = 15f
+            contentDescription = getString(R.string.share)
+            setOnClickListener { sharePost(post, professional) }
+        }
+        actions.addView(likeButton, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        actions.addView(commentButton, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        actions.addView(shareButton, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        box.addView(actions)
+        card.addView(box)
+        return card
+    }
+
+'''
+          text = replace_between(
+              text,
+              '    private fun postCard(post: Post): View {',
+              '    private fun postImageView(post: Post, professional: Professional?): View {',
+              new_post_card
+          )
+
+          new_comments = '''    private fun commentsFor(post: Post): MutableList<FeedComment> =
+        feedComments.getOrPut(post.id) { mutableListOf() }
+
+    private fun likeActionText(post: Post): String =
+        "${if (post.id in likedPostsUi) "♥" else "♡"} ${post.likes}"
+
+    private fun renderCommentPreview(container: LinearLayout, post: Post) {
+        container.removeAllViews()
+        commentsFor(post).takeLast(2).forEach { comment ->
+            container.addView(commentPreviewText(comment))
+        }
+    }
+
+    private fun commentPreviewText(comment: FeedComment): TextView {
+        val line = "${comment.author}  ${comment.text}"
+        val styled = SpannableString(line).apply {
+            setSpan(
+                StyleSpan(android.graphics.Typeface.BOLD),
+                0,
+                comment.author.length,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+        }
+        return bodyText("").apply {
+            text = styled
+            textSize = 14f
+            setPadding(0, dp(2), 0, dp(2))
+        }
+    }
+
+    private fun commentDialogView(comment: FeedComment): View = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(0, dp(5), 0, dp(7))
+        addView(TextView(this@MainActivity).apply {
+            text = "${comment.author}  •  ${comment.time}"
+            textSize = 14f
+            setTextColor(Color.parseColor("#315E53"))
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+        })
+        addView(bodyText(comment.text))
+    }
+
+    private fun showCommentsDialog(post: Post, button: Button, preview: LinearLayout) {
+        val comments = commentsFor(post)
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(4), dp(20), 0)
+        }
+        val commentsBox = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            if (comments.isEmpty()) {
+                addView(bodyText(noCommentsLabel()))
+            } else {
+                comments.forEach { addView(commentDialogView(it)) }
+            }
+        }
+        val scroll = ScrollView(this).apply {
+            addView(
+                commentsBox,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            )
+        }
+        content.addView(
+            scroll,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(240)
+            )
+        )
+
+        val user = DummyCloudRepository.currentUser
+        val input = EditText(this).apply {
+            hint = getString(R.string.comment_hint)
+            minLines = 2
+            maxLines = 4
+        }
+        if (user != null) {
+            content.addView(input, matchWrap())
+        } else {
+            content.addView(bodyText(signInToCommentLabel()))
+        }
+
+        val builder = MaterialAlertDialogBuilder(this)
+            .setTitle("💬 ${commentCountLabel(post.comments)}")
+            .setView(content)
+            .setNegativeButton(android.R.string.cancel, null)
+
+        if (user == null) {
+            builder.setPositiveButton(R.string.sign_in) { _, _ -> showSignInDialog() }
+        } else {
+            builder.setPositiveButton(R.string.add) { _, _ ->
+                val value = input.text.toString().trim()
+                if (value.isNotBlank()) {
+                    comments.add(FeedComment(user.displayName, value, justNowLabel()))
+                    DummyCloudRepository.addComment(post.id, value)
+                    button.text = "💬 ${post.comments}"
+                    button.contentDescription = commentCountLabel(post.comments)
+                    renderCommentPreview(preview, post)
+                }
+            }
+        }
+        builder.show()
+    }
+
+    private fun commentCountLabel(count: Int): String = when (currentLanguage()) {
+        "ar" -> "$count تعليق"
+        "fr" -> "$count commentaire${if (count > 1) "s" else ""}"
+        else -> "$count comment${if (count != 1) "s" else ""}"
+    }
+
+    private fun noCommentsLabel(): String = when (currentLanguage()) {
+        "ar" -> "لا توجد تعليقات بعد. كن أول من يعلّق."
+        "fr" -> "Aucun commentaire. Soyez le premier à commenter."
+        else -> "No comments yet. Be the first to comment."
+    }
+
+    private fun signInToCommentLabel(): String = when (currentLanguage()) {
+        "ar" -> "سجّل الدخول لإضافة تعليق."
+        "fr" -> "Connectez-vous pour ajouter un commentaire."
+        else -> "Sign in to add a comment."
+    }
+
+    private fun justNowLabel(): String = when (currentLanguage()) {
+        "ar" -> "الآن"
+        "fr" -> "À l’instant"
+        else -> "Just now"
+    }
+
+'''
+          text = replace_between(
+              text,
+              '    private fun showCommentDialog(post: Post, button: Button) {',
+              '    private fun showReviewDialog(professional: Professional) {',
+              new_comments
+          )
+
+          path.write_text(text, encoding='utf-8')
+          PY
+      - name: Validate Android project
+        run: |
+          chmod +x gradlew
+          ./gradlew test assembleDebug --stacktrace
+      - name: Commit feed update
+        run: |
+          if git diff --quiet -- app/src/main/java/com/example/khedmati/MainActivity.kt; then
+            echo "No app changes to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/main/java/com/example/khedmati/MainActivity.kt
+          git commit -m "Improve post comments and social feed actions"
+          git push origin HEAD:main
