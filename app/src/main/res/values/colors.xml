@@ -13,4 +13,5 @@
     <color name="khedmati_outline">#D7E3DE</color>
     <color name="khedmati_outline_strong">#B8CEC5</color>
     <color name="khedmati_heart">#C8465A</color>
+    <color name="khedmati_like">#C8465A</color>
 </resources>
