@@ -4,6 +4,9 @@ import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.StyleSpan
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
@@ -52,6 +55,29 @@ class MainActivity : AppCompatActivity() {
     private var activeTab = R.id.nav_home
     private var pendingPostImageUri: Uri? = null
     private var pendingPostPreview: ImageView? = null
+
+    private data class FeedComment(
+        val author: String,
+        val text: String,
+        val time: String
+    )
+
+    private val likedPostsUi = mutableSetOf<String>()
+    private val feedComments = mutableMapOf<String, MutableList<FeedComment>>(
+        "post-1" to mutableListOf(
+            FeedComment("Maya", "Very clean work 👏", "18 min"),
+            FeedComment("Karim", "Nice organization. Which breakers did you use?", "42 min"),
+            FeedComment("Rami", "Professional finish, well done.", "1 h"),
+            FeedComment("Nadine", "I like how clearly everything is labeled.", "1 h")
+        ),
+        "post-2" to mutableListOf(
+            FeedComment("Hadi", "Great repair. The installation looks solid.", "5 h"),
+            FeedComment("Lina", "Do you work around Zahle too?", "8 h")
+        ),
+        "post-3" to mutableListOf(
+            FeedComment("Sara", "The before-and-after difference is impressive!", "2 d")
+        )
+    )
 
     private val workImagePicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -685,7 +711,7 @@ class MainActivity : AppCompatActivity() {
         val card = basicCard()
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(14), dp(14), dp(14), dp(14))
+            setPadding(dp(14), dp(14), dp(14), dp(12))
         }
         box.addView(TextView(this).apply {
             text = professional?.publicName?.resolve(currentLanguage()) ?: getString(R.string.professional)
@@ -694,28 +720,55 @@ class MainActivity : AppCompatActivity() {
             setTypeface(typeface, android.graphics.Typeface.BOLD)
             setOnClickListener { professional?.let { renderProfessionalProfile(it) } }
         })
-        box.addView(bodyText(post.publishedLabel.resolve(currentLanguage())))
+        box.addView(bodyText(post.publishedLabel.resolve(currentLanguage())).apply {
+            textSize = 13f
+            setTextColor(Color.parseColor("#7A8984"))
+        })
         box.addView(space(8))
         box.addView(postImageView(post, professional))
         box.addView(space(10))
         box.addView(bodyText(post.text.resolve(currentLanguage())))
 
-        val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        val commentPreview = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dp(4), 0, dp(4))
+        }
+        renderCommentPreview(commentPreview, post)
+        box.addView(commentPreview)
+
+        val actions = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(6), 0, 0)
+        }
         val likeButton = Button(this).apply {
-            text = getString(R.string.like_with_count, post.likes)
+            isAllCaps = false
+            text = likeActionText(post)
+            textSize = 16f
+            setTextColor(Color.parseColor("#B74C5C"))
+            contentDescription = "Like"
             setOnClickListener {
                 if (requireSignedIn()) {
-                    DummyCloudRepository.toggleLike(post.id)
-                    text = getString(R.string.like_with_count, post.likes)
+                    val liked = DummyCloudRepository.toggleLike(post.id)
+                    if (liked) likedPostsUi.add(post.id) else likedPostsUi.remove(post.id)
+                    text = likeActionText(post)
                 }
             }
         }
         val commentButton = Button(this).apply {
-            text = getString(R.string.comment_with_count, post.comments)
-            setOnClickListener { if (requireSignedIn()) showCommentDialog(post, this) }
+            isAllCaps = false
+            text = "💬 ${post.comments}"
+            textSize = 15f
+            contentDescription = commentCountLabel(post.comments)
+        }
+        commentButton.setOnClickListener {
+            showCommentsDialog(post, commentButton, commentPreview)
         }
         val shareButton = Button(this).apply {
-            text = getString(R.string.share)
+            isAllCaps = false
+            text = "↗ ${getString(R.string.share)}"
+            textSize = 15f
+            contentDescription = getString(R.string.share)
             setOnClickListener { sharePost(post, professional) }
         }
         actions.addView(likeButton, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
@@ -834,20 +887,135 @@ class MainActivity : AppCompatActivity() {
         return false
     }
 
-    private fun showCommentDialog(post: Post, button: Button) {
+    private fun commentsFor(post: Post): MutableList<FeedComment> =
+        feedComments.getOrPut(post.id) { mutableListOf() }
+
+    private fun likeActionText(post: Post): String =
+        "${if (post.id in likedPostsUi) "♥" else "♡"} ${post.likes}"
+
+    private fun renderCommentPreview(container: LinearLayout, post: Post) {
+        container.removeAllViews()
+        commentsFor(post).takeLast(2).forEach { comment ->
+            container.addView(commentPreviewText(comment))
+        }
+    }
+
+    private fun commentPreviewText(comment: FeedComment): TextView {
+        val line = "${comment.author}  ${comment.text}"
+        val styled = SpannableString(line).apply {
+            setSpan(
+                StyleSpan(android.graphics.Typeface.BOLD),
+                0,
+                comment.author.length,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+        }
+        return bodyText("").apply {
+            text = styled
+            textSize = 14f
+            setPadding(0, dp(2), 0, dp(2))
+        }
+    }
+
+    private fun commentDialogView(comment: FeedComment): View = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        setPadding(0, dp(5), 0, dp(7))
+        addView(TextView(this@MainActivity).apply {
+            text = "${comment.author}  •  ${comment.time}"
+            textSize = 14f
+            setTextColor(Color.parseColor("#315E53"))
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+        })
+        addView(bodyText(comment.text))
+    }
+
+    private fun showCommentsDialog(post: Post, button: Button, preview: LinearLayout) {
+        val comments = commentsFor(post)
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(4), dp(20), 0)
+        }
+        val commentsBox = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            if (comments.isEmpty()) {
+                addView(bodyText(noCommentsLabel()))
+            } else {
+                comments.forEach { addView(commentDialogView(it)) }
+            }
+        }
+        val scroll = ScrollView(this).apply {
+            addView(
+                commentsBox,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+            )
+        }
+        content.addView(
+            scroll,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(240)
+            )
+        )
+
+        val user = DummyCloudRepository.currentUser
         val input = EditText(this).apply {
             hint = getString(R.string.comment_hint)
             minLines = 2
+            maxLines = 4
         }
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.add_comment)
-            .setView(input)
+        if (user != null) {
+            content.addView(input, matchWrap())
+        } else {
+            content.addView(bodyText(signInToCommentLabel()))
+        }
+
+        val builder = MaterialAlertDialogBuilder(this)
+            .setTitle("💬 ${commentCountLabel(post.comments)}")
+            .setView(content)
             .setNegativeButton(android.R.string.cancel, null)
-            .setPositiveButton(R.string.add) { _, _ ->
-                DummyCloudRepository.addComment(post.id, input.text.toString())
-                button.text = getString(R.string.comment_with_count, post.comments)
+
+        if (user == null) {
+            builder.setPositiveButton(R.string.sign_in) { _, _ -> showSignInDialog() }
+        } else {
+            builder.setPositiveButton(R.string.add) { _, _ ->
+                val value = input.text.toString().trim()
+                if (value.isNotBlank()) {
+                    comments.add(FeedComment(user.displayName, value, justNowLabel()))
+                    DummyCloudRepository.addComment(post.id, value)
+                    button.text = "💬 ${post.comments}"
+                    button.contentDescription = commentCountLabel(post.comments)
+                    renderCommentPreview(preview, post)
+                }
             }
-            .show()
+        }
+        builder.show()
+    }
+
+    private fun commentCountLabel(count: Int): String = when (currentLanguage()) {
+        "ar" -> "$count تعليق"
+        "fr" -> "$count commentaire${if (count > 1) "s" else ""}"
+        else -> "$count comment${if (count != 1) "s" else ""}"
+    }
+
+    private fun noCommentsLabel(): String = when (currentLanguage()) {
+        "ar" -> "لا توجد تعليقات بعد. كن أول من يعلّق."
+        "fr" -> "Aucun commentaire. Soyez le premier à commenter."
+        else -> "No comments yet. Be the first to comment."
+    }
+
+    private fun signInToCommentLabel(): String = when (currentLanguage()) {
+        "ar" -> "سجّل الدخول لإضافة تعليق."
+        "fr" -> "Connectez-vous pour ajouter un commentaire."
+        else -> "Sign in to add a comment."
+    }
+
+    private fun justNowLabel(): String = when (currentLanguage()) {
+        "ar" -> "الآن"
+        "fr" -> "À l’instant"
+        else -> "Just now"
     }
 
     private fun showReviewDialog(professional: Professional) {
