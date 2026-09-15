@@ -2,6 +2,7 @@ package com.example.khedmati
 
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
@@ -69,6 +70,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupNavigation() {
+        binding.bottomNavigation.apply {
+            visibility = View.VISIBLE
+            isEnabled = true
+            if (menu.size() == 0) inflateMenu(R.menu.bottom_nav_menu)
+        }
+
         binding.bottomNavigation.setOnItemSelectedListener { item ->
             if (ignoreBottomSelection) return@setOnItemSelectedListener true
             when (item.itemId) {
